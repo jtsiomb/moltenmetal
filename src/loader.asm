@@ -24,20 +24,61 @@ _start:
 	xor ax, ax
 	mov sp, ax
 
+%ifdef BUG_WARNING
+	call warning	; issue a warning and allow the user to abort
+%endif
+
 	; check for VM86 and abort
 	mov eax, cr0
 	test ax, 1
 	jz .notvm86
 
+	; try to return to real mode
+	mov si, str_gemmis
+	call printstr
+
+	xor ax, ax
+	mov bx, ax
+	mov si, ax
+	mov es, ax
+	mov ds, ax
+	mov cx, ax
+	mov dx, ax
+	mov ax, 1605h
+	mov di, 30ah	; pretend to be windows 3.1
+	int 2fh
+	test cx, cx
+	jnz .vm86abort
+	; we got a function in ds:si
+	push cs
+	push ds
+	pop es	; es <- func seg
+	pop ds	; ds <- cs
+	mov word [vmswitch_seg], es
+	mov word [vmswitch_off], si
+	xor ax, ax	; return to real mode
+	cli		; just make sure nothing enabled intr behind out back
+	call far [vmswitch]
+	jc .vm86abort
+
+	; success
+	mov ax, cs
+	mov ds, ax
+	mov es, ax
+	mov si, msg_okstr
+	call printstr
+	jmp .notvm86
+
+.vm86abort:
+	push cs
+	pop ds
+	mov si, msg_failstr
+	call printstr
 	mov si, str_errvm86
 	call printstr
 	jmp exit
 
 .notvm86:
-%ifdef BUG_WARNING
-	call warning	; issue a warning and allow the user to abort
-%endif
-
 %ifdef CON_SERIAL
 	call setup_serial
 %endif
@@ -125,16 +166,31 @@ _start:
 
 	; restore real-mode IVT
 	lidt [rmidt]
-	sti
 
+	; switch back to text mode
 	mov ax, 3
 	int 10h
+
+	; if we used GEMMIS to exit vm86, switch back to it
+	cmp dword [vmswitch], 0
+	jz exit
+	mov ax, 1
+	call far [vmswitch]
+	; broadcast windows exit
+	mov ax, 1606h
+	xor dx, dx
+	int 2fh
+
 exit:	mov ax, 4c00h
 	int 21h
 
-str_errvm86 db 'Error: memory manager detected! Stop it and try again (e.g. emm386 off)',10,0
+str_gemmis db 'Memory manager detected, trying to take control...',0
+str_errvm86 db 'Error: memory manager running. Stop it and try again (e.g. emm386 off)',10,0
 str_enterpm db 'Entering 32bit protected mode ...',10,0
 
+vmswitch:
+vmswitch_off dw 0
+vmswitch_seg dw 0
 
 %ifdef BUG_WARNING
 	; warns the user about the experimental and buggy state of this
@@ -153,7 +209,7 @@ str_warnmsg:
 	db 'still in a very early stage of development, and will probably not be able to ',10
 	db 'return cleanly to DOS on exit. You might be forced to reboot after quitting!',10
 	db 'If this is not acceptable, press ESC now to abort.',10,10
-	db 'Press ESC to abort and return to DOS, any other key to continue...',10,0
+	db 'Press ESC to abort and return to DOS, any other key to continue...',10,10,0
 %endif	; BUG_WARNING
 
 
@@ -172,17 +228,17 @@ enable_a20:
 	call enable_a20_fast
 	call test_a20
 	jnc .done
-	mov si, .failstr
+	mov si, msg_failstr
 	call printstr
 	mov ax, 4c00h
 	int 21h
-.done:	mov si, .okstr
+.done:	mov si, msg_okstr
 	call printstr
 .ret:	ret
 
 .infomsg db 'Enable A20 line:',0
-.failstr db ' failed.',10,0
-.okstr	db ' success.',10,0
+msg_failstr db ' failed.',10,0
+msg_okstr db ' success.',10,0
 
 	; CF = 1 if A20 test fails (not enabled)
 test_a20:
