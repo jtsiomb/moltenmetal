@@ -1,0 +1,11 @@
+*.o
+*.d
+*.swp
+*.com
+*.map
+RUN
+disasm
+dosbox.conf
+*.log
+tofloppy
+*.s
