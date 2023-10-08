@@ -30,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #define fmod(x, y)	__builtin_fmod(x, y)
 #define sqrt(x)		__builtin_sqrt(x)
 #define atan2(y, x)	__builtin_atan2(y, x)
+#define acos(x)		__builtin_acos(x)
 
 double pow(double x, double y);
 

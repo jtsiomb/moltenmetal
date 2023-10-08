@@ -223,6 +223,17 @@ char *strncpy(char *dest, const char *src, int n)
 	return dest;
 }
 
+char *strdup(const char *s)
+{
+	char *ns;
+	int len = strlen(s);
+	if(!(ns = malloc(len + 1))) {
+		return 0;
+	}
+	memcpy(ns, s, len + 1);
+	return ns;
+}
+
 /*
 static const char *errstr[] = {
 	"Success",
