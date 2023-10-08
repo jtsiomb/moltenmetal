@@ -177,8 +177,14 @@ _start:
 	mov ax, 1
 	call far [vmswitch]
 	; broadcast windows exit
+	xor ax, ax
+	mov bx, ax
+	mov si, ax
+	mov es, ax
+	mov ds, ax
+	mov cx, ax
+	mov dx, ax
 	mov ax, 1606h
-	xor dx, dx
 	int 2fh
 
 exit:	mov ax, 4c00h
@@ -188,6 +194,7 @@ str_gemmis db 'Memory manager detected, trying to take control...',0
 str_errvm86 db 'Error: memory manager running. Stop it and try again (e.g. emm386 off)',10,0
 str_enterpm db 'Entering 32bit protected mode ...',10,0
 
+	align 4
 vmswitch:
 vmswitch_off dw 0
 vmswitch_seg dw 0

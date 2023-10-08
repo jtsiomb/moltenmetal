@@ -16,6 +16,7 @@ void game_keyboard(int key, int press);
 void game_mouse(int bn, int press, int x, int y);
 void game_motion(int x, int y);
 
+unsigned long game_getmsec(void);
 void game_quit(void);
 void game_swap_buffers(void);
 

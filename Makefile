@@ -7,7 +7,7 @@ bin = game.com
 
 warn = -pedantic -Wall -Wno-unused-function
 opt = -O2
-inc = -Isrc -Isrc/kern -Isrc/libc
+inc = -Isrc -Isrc/3dgfx -Isrc/kern -Isrc/libc
 
 AS = nasm
 

@@ -48,6 +48,24 @@ extern uint32_t perf_start_count, perf_interval_count;
 			: "flags", "memory"); \
 	} while(0)
 
+/*
+#define memset32(dest, val, count) \
+	asm volatile ( \
+		"cld\n\t" \
+		"rep stosl\n\t" \
+		:: "a"(val), "c"(count), "D"(dest) \
+		: "flags", "memory")
+*/
+#define memset32(dest, val, count) \
+	do { \
+		int i; \
+		uint32_t *ptr = (uint32_t*)dest; \
+		for(i=0; i<count; i++) { \
+			ptr[i] = val; \
+		} \
+	} while(0)
+
+
 #ifdef USE_MMX
 #define memcpy64(dest, src, count) asm volatile ( \
 	"0:\n\t" \

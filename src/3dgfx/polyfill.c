@@ -26,7 +26,6 @@ void (*fillfunc[])(struct pvertex*) = {
 	polyfill_tex_flat,
 	polyfill_tex_gouraud,
 	0,
-	0, 0, 0, 0, 0, 0, 0, 0,
 	polyfill_wire,
 	polyfill_flat_zbuf,
 	polyfill_gouraud_zbuf,
@@ -35,7 +34,6 @@ void (*fillfunc[])(struct pvertex*) = {
 	polyfill_tex_flat_zbuf,
 	polyfill_tex_gouraud_zbuf,
 	0,
-	0, 0, 0, 0, 0, 0, 0, 0
 };
 
 struct pimage pfill_fb, pfill_tex;

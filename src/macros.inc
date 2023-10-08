@@ -1,4 +1,4 @@
-%define BUG_WARNING
+%undef BUG_WARNING
 %define CON_SERIAL
 
 UART_BASE	equ 2f8h		; COM1: 3f8, COM2: 2f8

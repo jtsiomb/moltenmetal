@@ -203,10 +203,10 @@ void g3d_clear_depth(float z)
 void g3d_clear(unsigned int mask)
 {
 	if(mask & G3D_COLOR_BUFFER_BIT) {
-		memset16(pfill_fb.pixels, st->clear_color, pfill_fb.width * pfill_fb.height);
+		memset(pfill_fb.pixels, st->clear_color, pfill_fb.width * pfill_fb.height);
 	}
 	if(mask & G3D_DEPTH_BUFFER_BIT) {
-		memset16(pfill_zbuf, st->clear_depth, pfill_fb.width * pfill_fb.height * sizeof *pfill_zbuf / 2);
+		memset32(pfill_zbuf, st->clear_depth, pfill_fb.width * pfill_fb.height);
 	}
 }
 

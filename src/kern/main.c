@@ -52,6 +52,11 @@ end:
 	return 0;
 }
 
+unsigned long game_getmsec(void)
+{
+	return TICKS_TO_MSEC(nticks);
+}
+
 void game_quit(void)
 {
 	quit = 1;
