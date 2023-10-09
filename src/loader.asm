@@ -21,7 +21,7 @@ _start:
 	; modify the return to real mode jump segment
 	mov [.jmpcs16 + 3], ax
 
-	xor ax, ax
+	mov ax, 0xfffe
 	mov sp, ax
 
 %ifdef BUG_WARNING
@@ -165,7 +165,7 @@ _start:
 	mov ss, ax
 
 	; restore real-mode IVT
-	lidt [rmidt]
+	o32 lidt [rmidt]
 
 	; switch back to text mode
 	mov ax, 3
@@ -357,7 +357,7 @@ detect_memory:
 str_ok db 'OK',10,0
 str_fail db 'failed',10,0
 memdet_fail_msg db 'Failed to detect available memory!',10,0
-memdet_detram	db 'Detecting RAM '
+memdet_detram	db 'Detecting RAM ',0
 memdet_e820_msg db '(BIOS 15h/0xe820)... ',0
 memdet_e801_msg db '(BIOS 15h/0xe801)... ',0
 memdet_88_msg	db '(BIOS 15h/0x88, max 64mb)... ',0
@@ -629,5 +629,41 @@ gdt:	; 0: null segment
 	dw 0
 rmidt:	dw 3ffh		; IVT limit (1kb / 256 entries)
 	dd 0		; IVT base 0
+
+
+; --- debug ---
+newline:
+	push ax
+	mov al, 13
+	call ser_putchar
+	mov al, 10
+	call ser_putchar
+	pop ax
+	ret
+
+printhex:
+	rol ax, 4
+	call print_hexdigit
+	rol ax, 4
+	call print_hexdigit
+	rol ax, 4
+	call print_hexdigit
+	rol ax, 4
+	call print_hexdigit
+	ret
+
+print_hexdigit:
+	push ax
+	and ax, 0xf
+	cmp al, 0xa
+	jae .hexdig
+	add al, '0'
+	call ser_putchar
+	pop ax
+	ret
+.hexdig:add al, 'a' - 10
+	call ser_putchar
+	pop ax
+	ret
 
 ; vi:set ts=8 sts=8 sw=8 ft=nasm:
