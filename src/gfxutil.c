@@ -4,6 +4,7 @@
 #include "gfxutil.h"
 #include "3dgfx/3dgfx.h"
 
+#if 0
 enum {
 	IN		= 0,
 	LEFT	= 1,
@@ -145,6 +146,7 @@ void draw_line(int x0, int y0, int x1, int y1, unsigned char color)
 		}
 	}
 }
+#endif
 
 void draw_billboard(float x, float y, float z, float size, int lum, int a)
 {

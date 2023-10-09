@@ -628,69 +628,33 @@ void g3d_draw_indexed(int prim, const struct g3d_vertex *varr, int varr_size,
 		}
 #endif
 
-		switch(vnum) {
-		case 1:
-			/*
-			if(st->opt & (G3D_ALPHA_BLEND | G3D_ADD_BLEND)) {
-				int r, g, b, inv_alpha;
-				g3d_pixel *dest = pfill_fb.pixels + (pv[0].y >> 8) * st->width + (pv[0].x >> 8);
-				if(st->opt & G3D_ALPHA_BLEND) {
-					inv_alpha = 255 - pv[0].a;
-					r = ((int)pv[0].r * pv[0].a + G3D_UNPACK_R(*dest) * inv_alpha) >> 8;
-					g = ((int)pv[0].g * pv[0].a + G3D_UNPACK_G(*dest) * inv_alpha) >> 8;
-					b = ((int)pv[0].b * pv[0].a + G3D_UNPACK_B(*dest) * inv_alpha) >> 8;
-				} else {
-					r = (int)pv[0].r + G3D_UNPACK_R(*dest);
-					g = (int)pv[0].g + G3D_UNPACK_G(*dest);
-					b = (int)pv[0].b + G3D_UNPACK_B(*dest);
-					if(r > 255) r = 255;
-					if(g > 255) g = 255;
-					if(b > 255) b = 255;
-				}
-				*dest++ = G3D_PACK_RGB(r, g, b);
-			} else {
-				g3d_pixel *dest = pfill_fb.pixels + (pv[0].y >> 8) * st->width + (pv[0].x >> 8);
-				*dest = G3D_PACK_RGB(pv[0].r, pv[0].g, pv[0].b);
-			}
-			*/
-			break;
-
-		case 2:
-			{
-				g3d_pixel col = pv[0].l;
-				draw_line(pv[0].x >> 8, pv[0].y >> 8, pv[1].x >> 8, pv[1].y >> 8, col);
-			}
-			break;
-
-		default:
-			fill_mode = st->polymode;
-			if(st->opt & G3D_TEXTURE_2D) {
-				fill_mode |= POLYFILL_TEX_BIT;
-			}
-			/*
-			if(st->opt & G3D_ALPHA_BLEND) {
-				fill_mode |= POLYFILL_ALPHA_BIT;
-			} else if(st->opt & G3D_ADD_BLEND) {
-				fill_mode |= POLYFILL_ADD_BIT;
-			}
-			*/
+		fill_mode = st->polymode;
+		if(st->opt & G3D_TEXTURE_2D) {
+			fill_mode |= POLYFILL_TEX_BIT;
+		}
+		/*
+		if(st->opt & G3D_ALPHA_BLEND) {
+		   fill_mode |= POLYFILL_ALPHA_BIT;
+		} else if(st->opt & G3D_ADD_BLEND) {
+		   fill_mode |= POLYFILL_ADD_BIT;
+		}
+		*/
 #ifdef ENABLE_ZBUFFER
-			if(st->opt & G3D_DEPTH_TEST) {
-				fill_mode |= POLYFILL_ZBUF_BIT;
-			}
+		if(st->opt & G3D_DEPTH_TEST) {
+			fill_mode |= POLYFILL_ZBUF_BIT;
+		}
 #endif
-			num_tri = vnum - 2;
-			vtri = v;
-			pvtri = pv;
-			for(;;) {
-				calc_grad(vtri);
-				polyfill(fill_mode, pvtri);
-				if(--num_tri == 0) break;
-				vtri[1] = vtri[0];
-				pvtri[1] = pvtri[0];
-				vtri++;
-				pvtri++;
-			}
+		num_tri = vnum - 2;
+		vtri = v;
+		pvtri = pv;
+		for(;;) {
+			calc_grad(vtri);
+			polyfill(fill_mode, pvtri);
+			if(--num_tri == 0) break;
+			vtri[1] = vtri[0];
+			pvtri[1] = pvtri[0];
+			vtri++;
+			pvtri++;
 		}
 	}
 }

@@ -51,7 +51,6 @@ enum { G3D_CCW, G3D_CW };
 
 /* arg to g3d_polygon_mode */
 enum {
-	G3D_WIRE,
 	G3D_FLAT,
 	G3D_GOURAUD
 };

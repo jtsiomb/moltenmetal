@@ -4,24 +4,17 @@
 #include "inttypes.h"
 #include "3dgfx.h"
 
-#define POLYFILL_MODE_MASK	0x03
-#define POLYFILL_TEX_BIT	0x04
-#define POLYFILL_ZBUF_BIT	0x08
+#define POLYFILL_MODE_MASK	0x01
+#define POLYFILL_TEX_BIT	0x02
+#define POLYFILL_ZBUF_BIT	0x04
 
 enum {
-	POLYFILL_WIRE			= 0,
 	POLYFILL_FLAT,
 	POLYFILL_GOURAUD,
-
-	POLYFILL_TEX_WIRE		= 4,
 	POLYFILL_TEX_FLAT,
 	POLYFILL_TEX_GOURAUD,
-
-	POLYFILL_WIRE_ZBUF			= 8,
 	POLYFILL_FLAT_ZBUF,
 	POLYFILL_GOURAUD_ZBUF,
-
-	POLYFILL_TEX_WIRE_ZBUF		= 12,
 	POLYFILL_TEX_FLAT_ZBUF,
 	POLYFILL_TEX_GOURAUD_ZBUF
 };
@@ -57,10 +50,8 @@ void polyfill_fbheight(int height);
 
 void polyfill(int mode, struct pvertex *verts);
 
-void polyfill_wire(struct pvertex *verts);
 void polyfill_flat(struct pvertex *verts);
 void polyfill_gouraud(struct pvertex *verts);
-void polyfill_tex_wire(struct pvertex *verts);
 void polyfill_tex_flat(struct pvertex *verts);
 void polyfill_tex_gouraud(struct pvertex *verts);
 void polyfill_flat_zbuf(struct pvertex *verts);

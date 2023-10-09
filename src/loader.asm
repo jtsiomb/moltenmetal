@@ -17,10 +17,12 @@ _start:
 	mov ds, ax
 	mov es, ax
 	mov fs, ax	; this will store the original real mode segment
-	mov ss, ax
 	; modify the return to real mode jump segment
 	mov [.jmpcs16 + 3], ax
 
+	; put the stack on the next segment, should be free 
+	add ax, 1000h
+	mov ss, ax
 	mov ax, 0xfffe
 	mov sp, ax
 
@@ -111,6 +113,7 @@ _start:
 	mov ax, 13h
 	int 10h
 
+	cli	; paranoid
 	lgdt [gdt_lim]
 
 	mov eax, cr0
