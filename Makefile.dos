@@ -1,7 +1,7 @@
 csrc = $(wildcard src/*.c) $(wildcard src/kern/*.c) $(wildcard src/libc/*.c) \
 	   $(wildcard src/3dgfx/*.c)
 ssrc = $(wildcard src/*.asm) $(wildcard src/kern/*.asm) $(wildcard src/libc/*.asm)
-obj = $(csrc:.c=.o) $(ssrc:.asm=.o)
+obj = $(csrc:.c=.o32) $(ssrc:.asm=.o32)
 dep = $(csrc:.c=.d)
 bin = game.com
 
@@ -22,7 +22,10 @@ $(bin): $(obj)
 
 -include $(dep)
 
-%.o: %.asm
+%.o32: %.c
+	$(CC) -o $@ $(CFLAGS) -c $<
+
+%.o32: %.asm
 	$(AS) -o $@ -f elf $(ASFLAGS) $<
 
 %.s: %.c

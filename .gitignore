@@ -1,4 +1,5 @@
 *.o
+*.o32
 *.d
 *.swp
 *.com
@@ -9,3 +10,5 @@ dosbox.conf
 *.log
 tofloppy
 *.s
+core
+game

@@ -44,7 +44,7 @@ int game_init(void)
 
 	g3d_matrix_mode(G3D_PROJECTION);
 	g3d_load_identity();
-	g3d_perspective(50.0f, 1.33333, 0.5, 500.0);
+	g3d_perspective(60.0f, 1.33333, 0.5, 500.0);
 
 	g3d_enable(G3D_CULL_FACE);
 	g3d_enable(G3D_DEPTH_TEST);
@@ -97,7 +97,7 @@ static void update(float tsec)
 				x = -BBOX_HSZ + k * VOX_STEP;
 
 				/* initialize with the vertical distance for the pool */
-				energy = BBOX_HSZ * 0.8 - y;
+				energy = 5.0 / (y + BBOX_HSZ * 0.98);
 
 				/* add the contribution of the balls */
 				for(n=0; n<num_balls; n++) {
