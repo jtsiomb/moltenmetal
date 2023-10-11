@@ -5,7 +5,7 @@ bin = game
 
 inc = -Isrc -Isrc/3dgfx -Isrc/kern
 
-CFLAGS = -pedantic -Wall -g $(inc) -MMD
+CFLAGS = -pedantic -Wall -O2 -ffast-math -fno-strict-aliasing -g $(inc) -MMD
 LDFLAGS = -lGL -lX11 -lXext -lm
 
 $(bin): $(obj)

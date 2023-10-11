@@ -8,12 +8,13 @@
 #include "metasurf.h"
 #include "util.h"
 #include "cgmath/cgmath.h"
+#include "metaobj.h"
 
 #define BBOX_SIZE		10.0f
 #define BBOX_HEIGHT		15.0f
 #define BBOX_HSZ		(BBOX_SIZE / 2.0f)
 #define BBOX_HH			(BBOX_HEIGHT / 2.0f)
-#define VOX_RES			30
+#define VOX_RES			32
 #define VOX_YRES		(VOX_RES * BBOX_HEIGHT / BBOX_SIZE)
 #define VOX_STEP		(BBOX_SIZE / (float)VOX_RES)
 #define VOX_YSTEP		(BBOX_HEIGHT / (float)VOX_YRES)
@@ -21,55 +22,25 @@
 #define VBUF_MAX_TRIS	256
 #define VBUF_SIZE		(VBUF_MAX_TRIS * 3)
 
-struct mball {
-	float energy;
-	cgm_vec3 pos;
-};
-
-struct mcapsule {
-	float energy;
-	cgm_vec3 end[2];
-	float len;
-};
-
-static struct g3d_mesh mesh;
 static struct g3d_vertex *vbuf;
 static struct metasurface *msurf;
-static struct mball *balls;
-static int num_balls;
-static struct mcapsule *caps;
-static int num_caps;
+static struct mobject **mobj;
+
+#define NUM_OBJ		2
+static int num_mobj, cur_obj;
+static int grabbed;
+
+static int mousebn[3];
+static int mousex, mousey;
+static float cam_theta, cam_phi;
+
 
 static void update(float tsec);
 static void draw_metaballs(void);
-static float capsule_distsq(struct mcapsule *c, cgm_vec3 *pos);
 
-static cgm_vec3 sgiv[] = {
-	{2.794170, 4.254175, 2.738066},
-	{2.794170, 4.254174, -4.358471},
-	{-2.173414, 4.254174, -4.358471},
-	{-2.173414, -2.842363, -4.358470},
-	{4.923134, -2.842363, -4.358471},
-	{4.923134, 2.125212, -4.358471},
-	{4.923134, 2.125212, 2.738066},
-	{4.923134, -4.971326, 2.738067},
-	{4.923134, -4.971326, -2.229511},
-	{-2.173413, -4.971326, -2.229511},
-	{-2.173413, -4.971325, 4.867042},
-	{2.794170, -4.971325, 4.867042},
-	{2.794170, 2.125213, 4.867042},
-	{-4.302382, 2.125213, 4.867042},
-	{-4.302383, -2.842362, 4.867042},
-	{-4.302382, -2.842363, -2.229511},
-	{-4.302382, 4.254175, -2.229512},
-	{-4.302383, 4.254175, 2.738066}
-};
 
 int game_init(void)
 {
-	int i;
-	float mat[16];
-
 	init_colormgr();
 
 	g3d_init();
@@ -89,8 +60,6 @@ int game_init(void)
 
 	g3d_polygon_mode(G3D_GOURAUD);
 
-	gen_torus_mesh(&mesh, 2.0, 0.7, 24, 12);
-
 	if(!(msurf = msurf_create())) {
 		return -1;
 	}
@@ -102,30 +71,11 @@ int game_init(void)
 
 	vbuf = malloc_nf(VBUF_SIZE * sizeof *vbuf);
 
-	num_balls = 0;
-	balls = calloc_nf(num_balls, sizeof *balls);
-	num_caps = sizeof sgiv / sizeof *sgiv;
-	caps = calloc_nf(num_caps, sizeof *caps);
-
-	for(i=0; i<num_balls; i++) {
-		balls[i].energy = 5;
-	}
-
-	cgm_midentity(mat);
-	cgm_mtranslate(mat, 0, -BBOX_HH / 2, 0);
-	cgm_mrotate_y(mat, -M_PI / 4.0f);
-	cgm_mrotate_x(mat, M_PI / 4.0f);
-
-	for(i=0; i<num_caps; i++) {
-		caps[i].energy = 1;
-		caps[i].end[0] = sgiv[i];
-		cgm_vscale(caps[i].end, 0.6);
-		caps[i].end[1] = sgiv[(i + 1) % num_caps];
-		cgm_vscale(caps[i].end + 1, 0.6);
-
-		cgm_vmul_m4v3(caps[i].end, mat);
-		cgm_vmul_m4v3(caps[i].end + 1, mat);
-	}
+	num_mobj = NUM_OBJ;
+	mobj = malloc(num_mobj * sizeof *mobj);
+	mobj[0] = metaobj_sgi();
+	mobj[1] = metaobj_sflake();
+	cur_obj = 1;
 	return 0;
 }
 
@@ -135,21 +85,12 @@ void game_shutdown(void)
 
 static void update(float tsec)
 {
-	int i, j, k, n;
-	float dsq, energy;
+	int i, j, k;
+	float energy;
 	cgm_vec3 pos;
 	float *vox = msurf_voxels(msurf);
 
-	for(i=0; i<num_balls; i++) {
-		balls[i].pos.y = sin(tsec) * BBOX_HH;
-	}
-
-	float y = sin(tsec) * BBOX_HH / 80.0f;
-	for(i=0; i<num_caps; i++) {
-		caps[i].end[0].y += y;
-		caps[i].end[1].y += y;
-		caps[i].len = cgm_vdist(caps[i].end, caps[i].end + 1);
-	}
+	mobj[cur_obj]->update(mobj[cur_obj], tsec);
 
 	for(i=0; i<VOX_RES; i++) {
 		pos.z = -BBOX_HSZ + i * VOX_STEP;
@@ -161,17 +102,7 @@ static void update(float tsec)
 				/* initialize with the vertical distance for the pool */
 				energy = 5.0 / (pos.y + BBOX_HH * 0.98);
 
-				/* add the contribution of the balls */
-				for(n=0; n<num_balls; n++) {
-					dsq = cgm_vdist_sq(&balls[n].pos, &pos);
-					energy += balls[n].energy / dsq;
-				}
-
-				/* add the contribution of the capsules */
-				for(n=0; n<num_caps; n++) {
-					dsq = capsule_distsq(caps + n, &pos);
-					energy += caps[n].energy / dsq;
-				}
+				energy += mobj[cur_obj]->eval(mobj[cur_obj], &pos);
 
 				*vox++ = energy;
 			}
@@ -193,6 +124,8 @@ void game_draw(void)
 	g3d_matrix_mode(G3D_MODELVIEW);
 	g3d_load_identity();
 	g3d_translate(0, 1, -15);
+	g3d_rotate(cam_phi, 1, 0, 0);
+	g3d_rotate(cam_theta, 0, 1, 0);
 	/*g3d_rotate(tsec * 50.0f, 1, 0, 0);
 	g3d_rotate(tsec * 30.0f, 0, 0, 1);
 
@@ -248,35 +181,38 @@ void game_keyboard(int key, int press)
 
 void game_mouse(int bn, int press, int x, int y)
 {
+	mousebn[bn] = press;
+	mousex = x;
+	mousey = y;
+
+	if(bn == 0) {
+		if(press && !grabbed) {
+			grabbed = 1;
+		} else if(!press && grabbed) {
+			grabbed = 0;
+		}
+	}
 }
 
 void game_motion(int x, int y)
 {
-}
+	int dx = x - mousex;
+	int dy = y - mousey;
+	mousex = x;
+	mousey = y;
 
-static float capsule_distsq(struct mcapsule *c, cgm_vec3 *pos)
-{
-	float t;
-	cgm_vec3 pp, dir, pdir;
+	if((dx | dy) == 0) return;
 
-	dir = c->end[1]; cgm_vsub(&dir, c->end);
-	if(c->len != 0.0f) {
-		float s = 1.0f / c->len;
-		dir.x *= s;
-		dir.y *= s;
-		dir.z *= s;
+	if(mousebn[0]) {
+		if(grabbed) {
+			mobj[cur_obj]->pos.x += dx * 0.1;
+			mobj[cur_obj]->pos.y -= dy * 0.1;
+		}
 	}
-	pdir = *pos; cgm_vsub(&pdir, c->end);
-	t = cgm_vdot(&dir, &pdir);
-
-	if(t < 0.0f) {
-		return cgm_vdist_sq(c->end, pos);
+	if(mousebn[2]) {
+		cam_theta += (float)dx * (0.6f * 1.333333333f);
+		cam_phi += (float)dy * 0.6f;
+		if(cam_phi < -90) cam_phi = -90;
+		if(cam_phi > 90) cam_phi = 90;
 	}
-	if(t > c->len) {
-		return cgm_vdist_sq(c->end + 1, pos);
-	}
-
-	pp = c->end[0];
-	cgm_vadd_scaled(&pp, &dir, t);
-	return cgm_vdist_sq(&pp, pos);
 }
