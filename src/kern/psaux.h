@@ -26,6 +26,7 @@ void init_psaux(void);
 
 int have_mouse(void);
 
+void set_mouse_pos(int x, int y);
 void set_mouse_bounds(int x0, int y0, int x1, int y1);
 unsigned int mouse_state(int *xp, int *yp);
 

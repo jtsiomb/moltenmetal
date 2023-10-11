@@ -95,6 +95,12 @@ void set_mouse_bounds(int x0, int y0, int x1, int y1)
 	bounds[3] = y1;
 }
 
+void set_mouse_pos(int x, int y)
+{
+	mx = x;
+	my = y;
+}
+
 unsigned int mouse_state(int *xp, int *yp)
 {
 	if(!intr_mode) {
