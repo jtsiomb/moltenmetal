@@ -10,14 +10,20 @@
 #include "cgmath/cgmath.h"
 #include "metaobj.h"
 
-#define BBOX_SIZE		10.0f
-#define BBOX_HEIGHT		15.0f
-#define BBOX_HSZ		(BBOX_SIZE / 2.0f)
-#define BBOX_HH			(BBOX_HEIGHT / 2.0f)
-#define VOX_RES			32
-#define VOX_YRES		(VOX_RES * BBOX_HEIGHT / BBOX_SIZE)
-#define VOX_STEP		(BBOX_SIZE / (float)VOX_RES)
-#define VOX_YSTEP		(BBOX_HEIGHT / (float)VOX_YRES)
+#define BBOX_XSZ		16
+#define BBOX_YSZ		15
+#define BBOX_ZSZ		10
+#define VOX_RES			30
+
+#define BBOX_HXSZ		(BBOX_XSZ / 2.0f)
+#define BBOX_HYSZ		(BBOX_YSZ / 2.0f)
+#define BBOX_HZSZ		(BBOX_ZSZ / 2.0f)
+#define VOX_XRES		(VOX_RES * BBOX_XSZ / BBOX_ZSZ)
+#define VOX_YRES		(VOX_RES * BBOX_YSZ / BBOX_ZSZ)
+#define VOX_ZRES		VOX_RES
+#define VOX_XSTEP		(BBOX_XSZ / (float)VOX_XRES)
+#define VOX_YSTEP		(BBOX_YSZ / (float)VOX_YRES)
+#define VOX_ZSTEP		(BBOX_ZSZ / (float)VOX_ZRES)
 
 #define VBUF_MAX_TRIS	256
 #define VBUF_SIZE		(VBUF_MAX_TRIS * 3)
@@ -57,6 +63,7 @@ int game_init(void)
 	g3d_enable(G3D_DEPTH_TEST);
 	g3d_enable(G3D_LIGHTING);
 	g3d_enable(G3D_LIGHT0);
+	g3d_light_ambient(0.2);
 
 	g3d_polygon_mode(G3D_GOURAUD);
 
@@ -65,8 +72,8 @@ int game_init(void)
 	}
 	msurf_set_threshold(msurf, 8);
 	msurf_set_inside(msurf, MSURF_GREATER);
-	msurf_set_bounds(msurf, -BBOX_HSZ, -BBOX_HH, -BBOX_HSZ, BBOX_HSZ, BBOX_HH, BBOX_HSZ);
-	msurf_set_resolution(msurf, VOX_RES, VOX_YRES, VOX_RES);
+	msurf_set_bounds(msurf, -BBOX_HXSZ, -BBOX_HYSZ, -BBOX_HZSZ, BBOX_HXSZ, BBOX_HYSZ, BBOX_HZSZ);
+	msurf_set_resolution(msurf, VOX_XRES, VOX_YRES, VOX_ZRES);
 	msurf_enable(msurf, MSURF_NORMALIZE);
 
 	vbuf = malloc_nf(VBUF_SIZE * sizeof *vbuf);
@@ -92,15 +99,17 @@ static void update(float tsec)
 
 	mobj[cur_obj]->update(mobj[cur_obj], tsec);
 
-	for(i=0; i<VOX_RES; i++) {
-		pos.z = -BBOX_HSZ + i * VOX_STEP;
+	for(i=0; i<VOX_ZRES; i++) {
+		pos.z = -BBOX_HZSZ + i * VOX_ZSTEP;
 		for(j=0; j<VOX_YRES; j++) {
-			pos.y = -BBOX_HH + j * VOX_YSTEP;
-			for(k=0; k<VOX_RES; k++) {
-				pos.x = -BBOX_HSZ + k * VOX_STEP;
+			pos.y = -BBOX_HYSZ + j * VOX_YSTEP;
+			for(k=0; k<VOX_XRES; k++) {
+				pos.x = -BBOX_HXSZ + k * VOX_XSTEP;
 
 				/* initialize with the vertical distance for the pool */
-				energy = 5.0 / (pos.y + BBOX_HH * 0.98);
+				energy = 5.0 / (pos.y + BBOX_HYSZ);
+				energy += 5.0 / (pos.x + BBOX_HXSZ);
+				energy += 5.0 / (BBOX_HXSZ - pos.x);
 
 				energy += mobj[cur_obj]->eval(mobj[cur_obj], &pos);
 
@@ -123,13 +132,10 @@ void game_draw(void)
 
 	g3d_matrix_mode(G3D_MODELVIEW);
 	g3d_load_identity();
-	g3d_translate(0, 1, -15);
+	g3d_translate(0, 1, -14);
 	g3d_rotate(cam_phi, 1, 0, 0);
 	g3d_rotate(cam_theta, 0, 1, 0);
-	/*g3d_rotate(tsec * 50.0f, 1, 0, 0);
-	g3d_rotate(tsec * 30.0f, 0, 0, 1);
 
-	draw_mesh(&mesh);*/
 	draw_metaballs();
 
 	game_swap_buffers();

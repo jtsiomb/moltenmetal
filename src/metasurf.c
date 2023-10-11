@@ -23,10 +23,46 @@ struct metasurface {
 static int msurf_init(struct metasurface *ms);
 static void process_cell(struct metasurface *ms, int xcell, int ycell, int zcell, vec3 pos, vec3 sz);
 
+static int **mc_tri_table;
+
+static int decompress_tables(void)
+{
+	int i, j, run, nib, *data;
+	unsigned char *indata;
+
+	if(!(mc_tri_table = malloc(256 * 16 * sizeof(int) + 256 * sizeof(void*)))) {
+		fprintf(stderr, "decompress_tables: failed to allocate memory\n");
+		return -1;
+	}
+
+	indata = tritab_data;
+	nib = 0;
+	data = (int*)(mc_tri_table + 256);
+	for(i=0; i<256; i++) {
+		mc_tri_table[i] = data + i * 16;
+
+		run = ((i & 1) == 0) ? tritab_runlen[i/2] & 0xf : tritab_runlen[i/2] >> 4;
+		for(j=0; j<16; j++) {
+			if(j < run) {
+				mc_tri_table[i][j] = ((nib++ & 1) == 0) ? *indata & 0xf : *indata++ >> 4;
+			} else {
+				mc_tri_table[i][j] = -1;
+			}
+		}
+	}
+
+	return 0;
+}
 
 struct metasurface *msurf_create(void)
 {
 	struct metasurface *ms;
+
+	if(!mc_tri_table) {
+		if(decompress_tables() == -1) {
+			return 0;
+		}
+	}
 
 	if(!(ms = malloc(sizeof *ms))) {
 		return 0;
