@@ -5,7 +5,9 @@ DOS protected mode kernel, which starts as a flat binary (COM file).
 
 About the game
 --------------
-To be determined...
+There is no goal or fail state. You just play with shapes pulled out of a pool
+of molten metal. Grab with the left mouse button and move them around, then let
+them fall back into the pool by releasing the mouse button.
 
 About COM32
 -----------
