@@ -28,7 +28,7 @@ void POLYFILL(struct pvertex *varr)
 
 #if !defined(GOURAUD)
 	/* for flat shading we already know the intensity */
-	color = find_color(varr[0].l, varr[0].l, varr[0].l);
+	color = varr[0].l;
 #endif
 
 	top = pfill_fb.height;
@@ -206,18 +206,14 @@ void POLYFILL(struct pvertex *varr)
 			/* for flat textured, cr,cg,cb would not be initialized */
 			inten = varr[0].l;
 #endif	/* !GOURAUD */
-			/* This is not correct, should be /255, but it's much faster
-			 * to shift by 8 (/256), and won't make a huge difference
-			 */
-			color = shade_color(texel, inten);
+			inten = shade_color(texel, inten);	/* was inten * texel */
 #endif	/* TEXMAP */
 
 #ifdef DEBUG_OVERDRAW
 			*pptr++ += DEBUG_OVERDRAW;
 #else
 #if defined(GOURAUD) || defined(TEXMAP)
-			if(inten >= 255) inten = 255;
-			color = find_color(inten, inten, inten);
+			color = inten;
 #endif
 			*pptr++ = color;
 #endif

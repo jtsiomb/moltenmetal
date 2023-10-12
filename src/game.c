@@ -13,7 +13,7 @@
 #define BBOX_XSZ		16
 #define BBOX_YSZ		15
 #define BBOX_ZSZ		10
-#define VOX_RES			30
+#define VOX_RES			24
 
 #define BBOX_HXSZ		(BBOX_XSZ / 2.0f)
 #define BBOX_HYSZ		(BBOX_YSZ / 2.0f)
@@ -40,6 +40,10 @@ static int mousebn[3];
 static int mousex, mousey;
 static float cam_theta, cam_phi;
 
+extern unsigned char textures_img[];
+extern unsigned char textures_cmap[];
+extern unsigned char textures_slut[];
+
 
 static void update(float tsec);
 static void draw_metaballs(void);
@@ -48,12 +52,13 @@ static void draw_metaballs(void);
 int game_init(void)
 {
 	init_colormgr();
+	load_colormap(0, 256, textures_cmap, textures_slut);
 
 	g3d_init();
 	g3d_framebuffer(FB_WIDTH, FB_HEIGHT, framebuf);
 	g3d_viewport(0, 0, FB_WIDTH, FB_HEIGHT);
 
-	g3d_clear_color(0, 0, 0);
+	g3d_clear_color(0);
 
 	g3d_matrix_mode(G3D_PROJECTION);
 	g3d_load_identity();
@@ -108,8 +113,8 @@ static void update(float tsec)
 
 				/* initialize with the vertical distance for the pool */
 				energy = 5.0 / (pos.y + BBOX_HYSZ);
-				energy += 5.0 / (pos.x + BBOX_HXSZ);
-				energy += 5.0 / (BBOX_HXSZ - pos.x);
+				/*energy += 5.0 / (pos.x + BBOX_HXSZ);
+				energy += 5.0 / (BBOX_HXSZ - pos.x);*/
 
 				energy += mobj[cur_obj]->eval(mobj[cur_obj], &pos);
 
@@ -136,7 +141,13 @@ void game_draw(void)
 	g3d_rotate(cam_phi, 1, 0, 0);
 	g3d_rotate(cam_theta, 0, 1, 0);
 
+	g3d_disable(G3D_LIGHTING);
+	g3d_enable(G3D_TEXTURE_2D);
+	g3d_enable(G3D_TEXTURE_GEN);
+	g3d_set_texture(32, 32, textures_img);
 	draw_metaballs();
+	g3d_disable(G3D_TEXTURE_GEN);
+	g3d_enable(G3D_LIGHTING);
 
 	game_swap_buffers();
 }

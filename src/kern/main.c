@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include "segm.h"
 #include "intr.h"
 #include "mem.h"
@@ -14,7 +15,9 @@ unsigned char *framebuf, *vmem = (unsigned char*)0xa0000;
 
 static int quit;
 static int mx, my;
+static long last_mouse_ev;
 
+#define CURSOR_TIMEOUT	MSEC_TO_TICKS(3000)
 static void draw_cursor(int mx, int my);
 
 
@@ -43,6 +46,7 @@ int main(void)
 	}
 
 	set_mouse_pos(160, 100);
+	last_mouse_ev = LONG_MIN;
 
 	for(;;) {
 		if((key = kb_getkey()) >= 0) {
@@ -54,16 +58,20 @@ int main(void)
 		if((mbn_diff = mbn ^ prev_mbn) != 0) {
 			if(mbn_diff & 1) {
 				game_mouse(0, mbn & 1, mx, my);
+				last_mouse_ev = nticks;
 			}
 			if(mbn_diff & 2) {
 				game_mouse(2, mbn & 2, mx, my);
+				last_mouse_ev = nticks;
 			}
 			if(mbn_diff & 4) {
 				game_mouse(1, mbn & 4, mx, my);
+				last_mouse_ev = nticks;
 			}
 		}
 		if(mx != prev_mx || my != prev_my) {
 			game_motion(mx, my);
+			last_mouse_ev = nticks;
 		}
 		prev_mbn = mbn;
 		prev_mx = mx;
@@ -92,7 +100,9 @@ void game_quit(void)
 
 void game_swap_buffers(void)
 {
-	draw_cursor(mx, my);
+	if((long)nticks - last_mouse_ev < MSEC_TO_TICKS(3000)) {
+		draw_cursor(mx, my);
+	}
 
 	memcpy(vmem, framebuf, 64000);
 }

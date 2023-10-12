@@ -78,7 +78,7 @@ void g3d_framebuffer(int width, int height, void *pixels);
 void g3d_framebuffer_addr(void *pixels);
 void g3d_viewport(int x, int y, int w, int h);
 
-void g3d_clear_color(unsigned char r, unsigned char g, unsigned char b);
+void g3d_clear_color(int cidx);
 void g3d_clear_depth(float z);
 void g3d_clear(unsigned int mask);
 

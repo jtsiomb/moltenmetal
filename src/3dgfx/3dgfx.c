@@ -187,9 +187,9 @@ void g3d_viewport(int x, int y, int w, int h)
 	st->vport[3] = h;
 }
 
-void g3d_clear_color(unsigned char r, unsigned char g, unsigned char b)
+void g3d_clear_color(int cidx)
 {
-	st->clear_color = find_color(r, g, b);
+	st->clear_color = cidx;
 }
 
 void g3d_clear_depth(float z)
