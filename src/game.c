@@ -82,9 +82,9 @@ int game_init(void)
 
 	num_mobj = NUM_OBJ;
 	mobjects = malloc(num_mobj * sizeof *mobj);
-	mobjects[0] = metaobj_sgi();
-	mobjects[1] = metaobj_sflake();
-	cur_obj = 1;
+	mobjects[0] = metaobj_sflake();
+	mobjects[1] = metaobj_sgi();
+	cur_obj = 0;
 	mobj = mobjects[cur_obj];
 	return 0;
 }

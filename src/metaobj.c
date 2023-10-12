@@ -96,8 +96,8 @@ static void update(struct mobject *mobj, float tsec)
 	}
 	if(mobj->state != MOBJ_HELD) {
 		for(i=0; i<count; i++) {
-			mobj->idlepos[i].x = sin(tsec * mobj->mot[i].x + mobj->mot[i].y) * mobj->mot[i].z * 3.0f;
-			mobj->idlepos[i].z = cos(tsec * mobj->mot[i].z + mobj->mot[i].y) * mobj->mot[i].x * 3.0f;
+			mobj->idlepos[i].x = sin(tsec * mobj->mot[i].x + mobj->mot[i].y) * mobj->mot[i].z * 4.0f;
+			mobj->idlepos[i].z = cos(tsec * mobj->mot[i].z + mobj->mot[i].y) * mobj->mot[i].x * 4.0f;
 			mobj->idlepos[i].y = -BBOX_YSZ * 0.45f;
 		}
 	}
@@ -298,30 +298,56 @@ struct mobject *metaobj_sgi(void)
 	}
 
 	mobj->swstate = swstate;
+	mobj->upd_caps = upd_sgi_caps;
 	return mobj;
 }
 
+#define LOGOSCALE	0.55f
 static void upd_sgi_caps(struct mobject *mobj, struct mcapsule *caps, float tsec, float t)
 {
-	int i;
-	float mat[16];
-	cgm_vec3 vpos[NUM_SGI_VERTS];
+	int idx0, idx1;
+	cgm_vec3 pos[2];
+	static cgm_vec3 prev_pos;
 
-	cgm_mcopy(mat, sgimat);
-	cgm_mrotate_y(mat, t);
-	cgm_mtranslate(mat, mobj->pos.x, mobj->pos.y, mobj->pos.z);
+	idx0 = caps - mobj->caps;
+	idx1 = idx0 >= mobj->num_caps - 1 ? 0 : idx0 + 1;
 
-	for(i=0; i<NUM_SGI_VERTS; i++) {
-		vpos[i] = sgiv[i];
-		cgm_vscale(vpos + i, 0.5);
-		cgm_vmul_m4v3(vpos + i, mat);
+	switch(mobj->state) {
+	case MOBJ_DROPPING:
+		t = 1.0f - t;
+	case MOBJ_GRABING:
+		if(idx0 == 0) {
+			pos[0] = sgiv[idx0];
+			cgm_vscale(pos, LOGOSCALE);
+			cgm_vmul_m4v3(pos, mobj->xform);
+			cgm_vlerp(caps->end, mobj->idlepos + idx0, pos, t);
+		} else {
+			caps->end[0] = prev_pos;
+		}
+		pos[1] = sgiv[idx1];
+		cgm_vscale(pos + 1, LOGOSCALE);
+		cgm_vmul_m4v3(pos + 1, mobj->xform);
+		cgm_vlerp(caps->end + 1, mobj->idlepos + idx1, pos + 1, t);
+		prev_pos = caps->end[1];
+		/*caps->energy = cgm_lerp(mobj->mot[idx].w, sfsph[idx].w, t);*/
+		break;
+
+	case MOBJ_HELD:
+		if(idx0 == 0) {
+			pos[0] = sgiv[idx0];
+			cgm_vscale(pos, LOGOSCALE);
+			cgm_vmul_m4v3(pos, mobj->xform);
+			caps->end[0] = pos[0];
+		} else {
+			caps->end[0] = prev_pos;
+		}
+		pos[1] = sgiv[idx0];
+		cgm_vscale(pos + 1, LOGOSCALE);
+		cgm_vmul_m4v3(pos + 1, mobj->xform);
+		prev_pos = caps->end[1] = pos[1];
+		break;
 	}
-
-	for(i=0; i<NUM_SGI_VERTS; i++) {
-		mobj->caps[i].end[0] = vpos[i];
-		mobj->caps[i].end[1] = vpos[(i + 1) % NUM_SGI_VERTS];
-		mobj->caps[i].len = cgm_vdist(mobj->caps[i].end, mobj->caps[i].end + 1);
-	}
+	caps->len = cgm_vdist(caps->end, caps->end + 1);
 }
 
 static float capsule_distsq(struct mcapsule *c, cgm_vec3 *pos)
