@@ -1,18 +1,179 @@
 #include <stdio.h>
 #include <string.h>
 #include "cgmath/cgmath.h"
+#include "game.h"
 #include "metasurf.h"
 #include "metaobj.h"
 #include "util.h"
 
-static void upd_sflake(struct mobject *mobj, float t);
-static float eval_sflake(struct mobject *mobj, cgm_vec3 *pos);
-static int num_balls(int depth);
+static struct mobject *mobj_create(int num);
+static void swstate(struct mobject *mobj, int st);
+static void update(struct mobject *mobj, float tsec);
+static float eval(struct mobject *mobj, cgm_vec3 *pos);
+
+static void upd_sflake_ball(struct mobject *mobj, struct mball *ball, float tsec, float t);
+static int calc_num_balls(int depth);
 static int gen_sflake(cgm_vec4 *sarr, int num, int depth, float x, float y, float z, float rad);
 
-static void upd_sgi(struct mobject *mobj, float t);
-static float eval_sgi(struct mobject *mobj, cgm_vec3 *pos);
+static void upd_sgi_caps(struct mobject *mobj, struct mcapsule *caps, float tsec, float t);
+
 static float capsule_distsq(struct mcapsule *c, cgm_vec3 *pos);
+static float easein(float x);
+static float easeout(float x);
+
+
+static struct mobject *mobj_create(int num)
+{
+	int i;
+	struct mobject *mobj;
+
+	mobj = calloc_nf(1, sizeof *mobj);
+
+	mobj->idlepos = malloc_nf(num * sizeof *mobj->idlepos);
+	mobj->mot = malloc_nf(num * sizeof *mobj->mot);
+
+	for(i=0; i<num; i++) {
+		mobj->mot[i].x = 2.0f * ((float)rand() / (float)RAND_MAX) - 1.0f;
+		mobj->mot[i].y = 2.0f * ((float)rand() / (float)RAND_MAX) - 1.0f;
+		mobj->mot[i].z = 2.0f * ((float)rand() / (float)RAND_MAX) - 1.0f;
+		mobj->mot[i].w = 0.8;
+	}
+
+	mobj->swstate = swstate;
+	mobj->update = update;
+	mobj->eval = eval;
+
+	mobj->state = -1;
+	swstate(mobj, MOBJ_IDLE);
+	return mobj;
+}
+
+static void swstate(struct mobject *mobj, int st)
+{
+	if(st == mobj->state) return;
+	if(st == MOBJ_GRABING && mobj->state != MOBJ_IDLE) return;
+	if(st == MOBJ_DROPPING && mobj->state != MOBJ_HELD && mobj->state != MOBJ_GRABING) {
+		return;
+	}
+
+	switch(st) {
+	case MOBJ_GRABING:
+		if(mobj->state != MOBJ_IDLE) return;
+		break;
+
+	case MOBJ_DROPPING:
+		if(mobj->state != MOBJ_HELD && mobj->state != MOBJ_GRABING) {
+			return;
+		}
+		break;
+
+	case MOBJ_IDLE:
+		mobj->pos.x = mobj->pos.z = 0.0f;
+		mobj->pos.y = -BBOX_YSZ * 0.5f;
+		break;
+	}
+
+	mobj->state = st;
+	mobj->tstart = (float)time_msec / 1000.0f;
+}
+
+static void update(struct mobject *mobj, float tsec)
+{
+	int i, count;
+	struct mball *ball;
+	struct mcapsule *caps;
+	float t;
+	cgm_vec3 *idleptr;
+	cgm_vec4 *motptr;
+
+	count = mobj->num_balls + mobj->num_caps;
+
+	if(mobj->state != MOBJ_IDLE) {
+		cgm_midentity(mobj->xform);
+		cgm_mrotate_x(mobj->xform, tsec);
+		cgm_mrotate_y(mobj->xform, tsec);
+		cgm_mtranslate(mobj->xform, mobj->pos.x, mobj->pos.y, mobj->pos.z);
+	}
+	if(mobj->state != MOBJ_HELD) {
+		for(i=0; i<count; i++) {
+			mobj->idlepos[i].x = sin(tsec * mobj->mot[i].x + mobj->mot[i].y) * mobj->mot[i].z * 3.0f;
+			mobj->idlepos[i].z = cos(tsec * mobj->mot[i].z + mobj->mot[i].y) * mobj->mot[i].x * 3.0f;
+			mobj->idlepos[i].y = -BBOX_YSZ * 0.45f;
+		}
+	}
+
+	idleptr = mobj->idlepos;
+	motptr = mobj->mot;
+	ball = mobj->balls;
+	caps = mobj->caps;
+
+	switch(mobj->state) {
+	case MOBJ_IDLE:
+		if(mobj->balls) {
+			for(i=0; i<mobj->num_balls; i++) {
+				ball->pos = idleptr[i];
+				ball->energy = motptr[i].w;
+				ball++;
+			}
+			idleptr += mobj->num_balls;
+			motptr += mobj->num_balls;
+		}
+		if(mobj->caps) {
+			for(i=0; i<mobj->num_caps; i++) {
+				caps->end[0] = caps->end[1] = idleptr[i];
+				caps->energy = motptr[i].w;
+				caps++;
+			}
+		}
+		break;
+
+	case MOBJ_GRABING:
+		t = easeout((tsec - mobj->tstart) / TRANSDUR);
+		if(t >= 1.0f) mobj->swstate(mobj, MOBJ_HELD);
+		if(0) {
+	case MOBJ_DROPPING:
+			t = easein((tsec - mobj->tstart) / TRANSDUR);
+			if(t >= 1.0f) mobj->swstate(mobj, MOBJ_IDLE);
+		}
+		for(i=0; i<mobj->num_balls; i++) {
+			mobj->upd_ball(mobj, ball++, tsec, t);
+		}
+		for(i=0; i<mobj->num_caps; i++) {
+			mobj->upd_caps(mobj, caps++, tsec, t);
+		}
+		break;
+
+	case MOBJ_HELD:
+		for(i=0; i<mobj->num_balls; i++) {
+			mobj->upd_ball(mobj, ball++, tsec, 0);
+		}
+		for(i=0; i<mobj->num_caps; i++) {
+			mobj->upd_caps(mobj, caps++, tsec, 0);
+		}
+		break;
+	}
+}
+
+static float eval(struct mobject *mobj, cgm_vec3 *pos)
+{
+	int i;
+	float dsq, energy = 0.0f;
+	struct mball *ball = mobj->balls;
+	struct mcapsule *caps = mobj->caps;
+
+	for(i=0; i<mobj->num_balls; i++) {
+		dsq = cgm_vdist_sq(&ball->pos, pos);
+		energy += ball->energy / dsq;
+		ball++;
+	}
+
+	for(i=0; i<mobj->num_caps; i++) {
+		dsq = capsule_distsq(mobj->caps + i, pos);
+		energy += caps->energy / dsq;
+	}
+	return energy;
+}
+
 
 /* ---- sphereflake ---- */
 #define SF_MAX_DEPTH	2
@@ -20,58 +181,50 @@ static cgm_vec4 *sfsph;
 
 struct mobject *metaobj_sflake(void)
 {
+	int num_balls;
 	struct mobject *mobj;
 
-	mobj = calloc_nf(1, sizeof *mobj);
+	num_balls = calc_num_balls(SF_MAX_DEPTH);
 
-	mobj->num_balls = num_balls(SF_MAX_DEPTH);
-	mobj->balls = malloc_nf(mobj->num_balls * sizeof *mobj->balls);
-	sfsph = malloc_nf(mobj->num_balls * sizeof *sfsph);
+	mobj = mobj_create(num_balls);
+
+	mobj->num_balls = num_balls;
+	mobj->balls = malloc_nf(num_balls * sizeof *mobj->balls);
+	sfsph = malloc_nf(num_balls * sizeof *sfsph);
 
 	gen_sflake(sfsph, 0, SF_MAX_DEPTH, 0, 0, 0, 20);
 
-	mobj->update = upd_sflake;
-	mobj->eval = eval_sflake;
+	mobj->upd_ball = upd_sflake_ball;
 	return mobj;
 }
 
-static void upd_sflake(struct mobject *mobj, float t)
+static void upd_sflake_ball(struct mobject *mobj, struct mball *ball, float tsec, float t)
 {
-	int i;
-	struct mball *ball = mobj->balls;
-	float mat[16];
+	int idx = ball - mobj->balls;
+	cgm_vec3 pos;
 
-	cgm_midentity(mat);
-	cgm_mrotate_x(mat, t);
-	cgm_mrotate_y(mat, t);
-	cgm_mtranslate(mat, mobj->pos.x, mobj->pos.y, mobj->pos.z);
+	switch(mobj->state) {
+	case MOBJ_DROPPING:
+		t = 1.0f - t;
+	case MOBJ_GRABING:
+		cgm_vcons(&pos, sfsph[idx].x, sfsph[idx].y, sfsph[idx].z);
+		cgm_vmul_m4v3(&pos, mobj->xform);
+		cgm_vlerp(&ball->pos, mobj->idlepos + idx, &pos, t);
+		ball->energy = cgm_lerp(mobj->mot[idx].w, sfsph[idx].w, t);
+		break;
 
-	for(i=0; i<mobj->num_balls; i++) {
-		cgm_vcons(&ball->pos, sfsph[i].x, sfsph[i].y, sfsph[i].z);
-		cgm_vmul_m4v3(&ball->pos, mat);
-		ball->energy = sfsph[i].w;
-		ball++;
+	case MOBJ_HELD:
+		cgm_vcons(&ball->pos, sfsph[idx].x, sfsph[idx].y, sfsph[idx].z);
+		cgm_vmul_m4v3(&ball->pos, mobj->xform);
+		ball->energy = sfsph[idx].w;
+		break;
 	}
 }
 
-static float eval_sflake(struct mobject *mobj, cgm_vec3 *pos)
-{
-	int i;
-	float dsq, energy = 0.0f;
-	struct mball *ball = mobj->balls;
-
-	for(i=0; i<mobj->num_balls; i++) {
-		dsq = cgm_vdist_sq(&ball->pos, pos);
-		energy += ball->energy / dsq;
-		ball++;
-	}
-	return energy;
-}
-
-static int num_balls(int depth)
+static int calc_num_balls(int depth)
 {
 	if(!depth) return 0;
-	return num_balls(depth - 1) * 6 + 1;
+	return calc_num_balls(depth - 1) * 6 + 1;
 }
 
 static int gen_sflake(cgm_vec4 *sarr, int num, int depth, float x, float y, float z, float rad)
@@ -130,12 +283,12 @@ struct mobject *metaobj_sgi(void)
 	int i;
 	struct mobject *mobj;
 
-	mobj = calloc_nf(1, sizeof *mobj);
-
 	cgm_midentity(sgimat);
 	cgm_mrotate_y(sgimat, -M_PI / 4.0f);
 	cgm_mrotate_x(sgimat, M_PI / 4.0f);
 	cgm_mtranslate(sgimat, 0, -4, 0);
+
+	mobj = mobj_create(NUM_SGI_VERTS);
 
 	mobj->num_caps = NUM_SGI_VERTS;
 	mobj->caps = calloc_nf(mobj->num_caps, sizeof *mobj->caps);
@@ -144,12 +297,11 @@ struct mobject *metaobj_sgi(void)
 		mobj->caps[i].energy = 0.7;
 	}
 
-	mobj->update = upd_sgi;
-	mobj->eval = eval_sgi;
+	mobj->swstate = swstate;
 	return mobj;
 }
 
-static void upd_sgi(struct mobject *mobj, float t)
+static void upd_sgi_caps(struct mobject *mobj, struct mcapsule *caps, float tsec, float t)
 {
 	int i;
 	float mat[16];
@@ -170,19 +322,6 @@ static void upd_sgi(struct mobject *mobj, float t)
 		mobj->caps[i].end[1] = vpos[(i + 1) % NUM_SGI_VERTS];
 		mobj->caps[i].len = cgm_vdist(mobj->caps[i].end, mobj->caps[i].end + 1);
 	}
-}
-
-static float eval_sgi(struct mobject *mobj, cgm_vec3 *pos)
-{
-	int i;
-	float dsq, val = 0.0f;
-
-	for(i=0; i<mobj->num_caps; i++) {
-		dsq = capsule_distsq(mobj->caps + i, pos);
-		val += mobj->caps[i].energy / dsq;
-	}
-
-	return val;
 }
 
 static float capsule_distsq(struct mcapsule *c, cgm_vec3 *pos)
@@ -210,4 +349,14 @@ static float capsule_distsq(struct mcapsule *c, cgm_vec3 *pos)
 	pp = c->end[0];
 	cgm_vadd_scaled(&pp, &dir, t);
 	return cgm_vdist_sq(&pp, pos);
+}
+
+static float easein(float x)
+{
+	return x * x * x;
+}
+
+static float easeout(float x)
+{
+	return 1.0f - pow(1.0f - x, 3.0f);
 }

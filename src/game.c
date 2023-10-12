@@ -10,10 +10,6 @@
 #include "cgmath/cgmath.h"
 #include "metaobj.h"
 
-#define BBOX_XSZ		16
-#define BBOX_YSZ		15
-#define BBOX_ZSZ		10
-#define VOX_RES			24
 
 #define BBOX_HXSZ		(BBOX_XSZ / 2.0f)
 #define BBOX_HYSZ		(BBOX_YSZ / 2.0f)
@@ -28,13 +24,14 @@
 #define VBUF_MAX_TRIS	256
 #define VBUF_SIZE		(VBUF_MAX_TRIS * 3)
 
+unsigned long time_msec;
+
 static struct g3d_vertex *vbuf;
 static struct metasurface *msurf;
-static struct mobject **mobj;
+static struct mobject **mobjects, *mobj;
 
 #define NUM_OBJ		2
 static int num_mobj, cur_obj;
-static int grabbed;
 
 static int mousebn[3];
 static int mousex, mousey;
@@ -84,10 +81,11 @@ int game_init(void)
 	vbuf = malloc_nf(VBUF_SIZE * sizeof *vbuf);
 
 	num_mobj = NUM_OBJ;
-	mobj = malloc(num_mobj * sizeof *mobj);
-	mobj[0] = metaobj_sgi();
-	mobj[1] = metaobj_sflake();
+	mobjects = malloc(num_mobj * sizeof *mobj);
+	mobjects[0] = metaobj_sgi();
+	mobjects[1] = metaobj_sflake();
 	cur_obj = 1;
+	mobj = mobjects[cur_obj];
 	return 0;
 }
 
@@ -102,7 +100,7 @@ static void update(float tsec)
 	cgm_vec3 pos;
 	float *vox = msurf_voxels(msurf);
 
-	mobj[cur_obj]->update(mobj[cur_obj], tsec);
+	mobjects[cur_obj]->update(mobjects[cur_obj], tsec);
 
 	for(i=0; i<VOX_ZRES; i++) {
 		pos.z = -BBOX_HZSZ + i * VOX_ZSTEP;
@@ -116,7 +114,7 @@ static void update(float tsec)
 				/*energy += 5.0 / (pos.x + BBOX_HXSZ);
 				energy += 5.0 / (BBOX_HXSZ - pos.x);*/
 
-				energy += mobj[cur_obj]->eval(mobj[cur_obj], &pos);
+				energy += mobj->eval(mobj, &pos);
 
 				*vox++ = energy;
 			}
@@ -128,8 +126,10 @@ static void update(float tsec)
 
 void game_draw(void)
 {
-	unsigned long msec = game_getmsec();
-	float tsec = (float)msec / 1000.0f;
+	float tsec;
+
+	time_msec = game_getmsec();
+	tsec = (float)time_msec / 1000.0f;
 
 	update(tsec);
 
@@ -157,7 +157,6 @@ static void draw_metaballs(void)
 	int i, nverts, vbuf_count;
 	float *varr, *narr;
 	struct g3d_vertex *vbptr;
-	static int nfrm;
 
 	nverts = msurf_vertex_count(msurf);
 	varr = msurf_vertices(msurf);
@@ -187,8 +186,6 @@ static void draw_metaballs(void)
 	if(vbptr > vbuf) {
 		g3d_draw(G3D_TRIANGLES, vbuf, vbptr - vbuf);
 	}
-
-	nfrm++;
 }
 
 void game_keyboard(int key, int press)
@@ -203,10 +200,12 @@ void game_mouse(int bn, int press, int x, int y)
 	mousey = y;
 
 	if(bn == 0) {
-		if(press && !grabbed) {
-			grabbed = 1;
-		} else if(!press && grabbed) {
-			grabbed = 0;
+		if(press) {
+			if(y > 3 * FB_HEIGHT / 4) {
+				mobj->swstate(mobj, MOBJ_GRABING);
+			}
+		} else {
+			mobj->swstate(mobj, MOBJ_DROPPING);
 		}
 	}
 }
@@ -221,10 +220,8 @@ void game_motion(int x, int y)
 	if((dx | dy) == 0) return;
 
 	if(mousebn[0]) {
-		if(grabbed) {
-			mobj[cur_obj]->pos.x += dx * 0.1;
-			mobj[cur_obj]->pos.y -= dy * 0.1;
-		}
+		mobj->pos.x += dx * 0.1;
+		mobj->pos.y -= dy * 0.1;
 	}
 	if(mousebn[2]) {
 		cam_theta += (float)dx * (0.6f * 1.333333333f);

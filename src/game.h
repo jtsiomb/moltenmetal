@@ -4,7 +4,15 @@
 #define FB_WIDTH	320
 #define FB_HEIGHT	200
 
+#define BBOX_XSZ		16
+#define BBOX_YSZ		15
+#define BBOX_ZSZ		10
+#define VOX_RES			24
+
+#define TRANSDUR		1.0f
+
 extern unsigned char *framebuf, *vmem;
+extern unsigned long time_msec;
 
 int game_init(void);
 void game_shutdown(void);
