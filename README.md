@@ -1,7 +1,7 @@
-metatoy
-=======
-Metatoy is mainly a tech demo for COM32, my experimental (and still quite buggy)
-DOS protected mode kernel, which starts as a flat binary (COM file).
+Molten Metal
+============
+Molten metal is mainly a tech demo for COM32, my experimental (and still quite
+buggy) DOS protected mode kernel, which starts as a flat binary (COM file).
 
 About the game
 --------------
@@ -25,7 +25,7 @@ Frankly there isn't much of a point in any of this, other than being a fun hack.
 
 License
 -------
-Copyright (C) John Tsiombikas <nuclear@mutantstargoat.com>
+Copyright (C) 2023 John Tsiombikas <nuclear@mutantstargoat.com>
 
 This program is free software, feel free to use, modify, and/or redistribute it
 under the terms of the GNU General Public License v3, or at your option any
@@ -34,4 +34,11 @@ details.
 
 Build
 -----
-You need gcc, nasm, and GNU make. If you do, just type `make`.
+The data files are not included in the git repo. If you cloned the git repo, you
+need to grab a copy of the data directory from the latest release archive before
+building.
+
+To build this program you'll need gcc, nasm, and GNU make.
+
+Run `make` to build the native (UNIX/Windows) version, or `make -f Makefile.dos`
+to build the DOS 32bit COM executable.

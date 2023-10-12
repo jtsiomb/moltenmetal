@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 
 	glutInitWindowSize(FB_WIDTH * scale, FB_HEIGHT * scale);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
-	glutCreateWindow("metatoy");
+	glutCreateWindow("Molten Metal");
 
 	glutDisplayFunc(game_draw);
 	glutIdleFunc(idle);
