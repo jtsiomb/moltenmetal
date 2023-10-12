@@ -38,7 +38,15 @@ The data files are not included in the git repo. If you cloned the git repo, you
 need to grab a copy of the data directory from the latest release archive before
 building.
 
-To build this program you'll need gcc, nasm, and GNU make.
+### DOS
+To build this program you'll need gcc, nasm, and GNU make. Only tested building
+from an x86 64bit GNU/Linux machine, it will need some minor makefile
+adjustments to build on anything else.
 
-Run `make` to build the native (UNIX/Windows) version, or `make -f Makefile.dos`
-to build the DOS 32bit COM executable.
+Run `make -f Makefile.dos` to build the DOS 32bit COM executable.
+
+### UNIX/Windows
+The cross-platform non-DOS version uses OpenGL to display the software-rendered
+framebuffer into a window.
+
+Run `make` to build.

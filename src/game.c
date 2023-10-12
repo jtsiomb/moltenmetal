@@ -21,6 +21,8 @@
 #define VOX_YSTEP		(BBOX_YSZ / (float)VOX_YRES)
 #define VOX_ZSTEP		(BBOX_ZSZ / (float)VOX_ZRES)
 
+#define AUTO_HEIGHT		(BBOX_YSZ / 6.0f)
+
 #define VBUF_MAX_TRIS	256
 #define VBUF_SIZE		(VBUF_MAX_TRIS * 3)
 
@@ -30,8 +32,7 @@ static struct g3d_vertex *vbuf;
 static struct metasurface *msurf;
 static struct mobject **mobjects, *mobj;
 
-#define NUM_OBJ		2
-static int num_mobj, cur_obj;
+static int num_mobj, cur_obj, chobj = -1;
 
 static int mousebn[3];
 static int mousex, mousey;
@@ -80,7 +81,7 @@ int game_init(void)
 
 	vbuf = malloc_nf(VBUF_SIZE * sizeof *vbuf);
 
-	num_mobj = NUM_OBJ;
+	num_mobj = 2;
 	mobjects = malloc(num_mobj * sizeof *mobj);
 	mobjects[0] = metaobj_sflake();
 	mobjects[1] = metaobj_sgi();
@@ -100,7 +101,17 @@ static void update(float tsec)
 	cgm_vec3 pos;
 	float *vox = msurf_voxels(msurf);
 
-	mobjects[cur_obj]->update(mobjects[cur_obj], tsec);
+	if(chobj >= 0) {
+		if(mobj->state == MOBJ_IDLE) {
+			cur_obj = chobj;
+			mobj = mobjects[cur_obj];
+			chobj = -1;
+			mobj->swstate(mobj, MOBJ_GRABING);
+			mobj->pos.y = AUTO_HEIGHT;
+		}
+	}
+
+	mobj->update(mobj, tsec);
 
 	for(i=0; i<VOX_ZRES; i++) {
 		pos.z = -BBOX_HZSZ + i * VOX_ZSTEP;
@@ -190,7 +201,27 @@ static void draw_metaballs(void)
 
 void game_keyboard(int key, int press)
 {
-	if(key == 27) game_quit();
+	if(!press) return;
+
+	switch(key) {
+	case 27:
+		game_quit();
+		break;
+
+	case '\t':
+		chobj = (cur_obj + 1) % num_mobj;
+		mobj->swstate(mobj, MOBJ_DROPPING);
+		break;
+
+	case ' ':
+		if(mobj->state == MOBJ_IDLE) {
+			mobj->swstate(mobj, MOBJ_GRABING);
+			mobj->pos.y = AUTO_HEIGHT;
+		} else {
+			mobj->swstate(mobj, MOBJ_DROPPING);
+		}
+		break;
+	}
 }
 
 void game_mouse(int bn, int press, int x, int y)

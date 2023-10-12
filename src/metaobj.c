@@ -334,14 +334,14 @@ static void upd_sgi_caps(struct mobject *mobj, struct mcapsule *caps, float tsec
 
 	case MOBJ_HELD:
 		if(idx0 == 0) {
-			pos[0] = sgiv[idx0];
+			pos[0] = sgiv[0];
 			cgm_vscale(pos, LOGOSCALE);
 			cgm_vmul_m4v3(pos, mobj->xform);
 			caps->end[0] = pos[0];
 		} else {
 			caps->end[0] = prev_pos;
 		}
-		pos[1] = sgiv[idx0];
+		pos[1] = sgiv[idx1];
 		cgm_vscale(pos + 1, LOGOSCALE);
 		cgm_vmul_m4v3(pos + 1, mobj->xform);
 		prev_pos = caps->end[1] = pos[1];
