@@ -82,7 +82,7 @@ static void update(struct mobject *mobj, float tsec)
 	int i, count;
 	struct mball *ball;
 	struct mcapsule *caps;
-	float t;
+	float t, elapsed;
 	cgm_vec3 *idleptr;
 	cgm_vec4 *motptr;
 
@@ -128,12 +128,20 @@ static void update(struct mobject *mobj, float tsec)
 		break;
 
 	case MOBJ_GRABING:
-		t = easeout((tsec - mobj->tstart) / TRANSDUR);
-		if(t >= 1.0f) mobj->swstate(mobj, MOBJ_HELD);
+		if((elapsed = tsec - mobj->tstart) >= TRANSDUR) {
+			mobj->swstate(mobj, MOBJ_HELD);
+			t = 1.0f;
+		} else {
+			t = easeout((tsec - mobj->tstart) / TRANSDUR);
+		}
 		if(0) {
 	case MOBJ_DROPPING:
-			t = easein((tsec - mobj->tstart) / TRANSDUR);
-			if(t >= 1.0f) mobj->swstate(mobj, MOBJ_IDLE);
+			if((elapsed = tsec - mobj->tstart) >= TRANSDUR) {
+				mobj->swstate(mobj, MOBJ_IDLE);
+				t = 1.0f;
+			} else {
+				t = easein((tsec - mobj->tstart) / TRANSDUR);
+			}
 		}
 		for(i=0; i<mobj->num_balls; i++) {
 			mobj->upd_ball(mobj, ball++, tsec, t);
@@ -168,8 +176,9 @@ static float eval(struct mobject *mobj, cgm_vec3 *pos)
 	}
 
 	for(i=0; i<mobj->num_caps; i++) {
-		dsq = capsule_distsq(mobj->caps + i, pos);
+		dsq = capsule_distsq(caps, pos);
 		energy += caps->energy / dsq;
+		caps++;
 	}
 	return energy;
 }

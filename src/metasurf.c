@@ -369,7 +369,7 @@ static void process_cell(struct metasurface *ms, int xcell, int ycell, int zcell
 
 			/* TODO multithreadied polygon emit */
 			if(ms->varr_size + 3 > ms->varr_alloc_size) {
-				int newsz = ms->varr_alloc_size ? ms->varr_alloc_size * 2 : 1024;
+				int newsz = ms->varr_alloc_size ? ms->varr_alloc_size * 2 : 32768;
 				float *new_varr, *new_narr;
 
 				if(!(new_varr = realloc(ms->varr, newsz * sizeof *new_varr)) ||
