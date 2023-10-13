@@ -28,6 +28,7 @@
 
 unsigned long time_msec;
 
+static struct g3d_mesh *mesh;
 static struct g3d_vertex *vbuf;
 static struct metasurface *msurf;
 static struct mobject **mobjects, *mobj;
@@ -41,16 +42,25 @@ static float cam_theta, cam_phi;
 extern unsigned char textures_img[];
 extern unsigned char textures_cmap[];
 extern unsigned char textures_slut[];
+extern unsigned char room_mesh[];
+
+static unsigned char *envmap;
 
 
 static void update(float tsec);
 static void draw_metaballs(void);
+static void conv_mesh(struct g3d_mesh *m, void *mdata);
 
 
 int game_init(void)
 {
 	init_colormgr();
 	load_colormap(0, 256, textures_cmap, textures_slut);
+
+	mesh = malloc_nf(sizeof *mesh);
+	conv_mesh(mesh, room_mesh);
+
+	envmap = textures_img + 32 * 32;
 
 	g3d_init();
 	g3d_framebuffer(FB_WIDTH, FB_HEIGHT, framebuf);
@@ -152,10 +162,14 @@ void game_draw(void)
 	g3d_rotate(cam_phi, 1, 0, 0);
 	g3d_rotate(cam_theta, 0, 1, 0);
 
+	g3d_polygon_mode(G3D_FLAT);
+	draw_mesh(mesh);
+	g3d_polygon_mode(G3D_GOURAUD);
+
 	g3d_disable(G3D_LIGHTING);
 	g3d_enable(G3D_TEXTURE_2D);
 	g3d_enable(G3D_TEXTURE_GEN);
-	g3d_set_texture(32, 32, textures_img);
+	g3d_set_texture(32, 32, envmap);
 	draw_metaballs();
 	g3d_disable(G3D_TEXTURE_GEN);
 	g3d_enable(G3D_LIGHTING);
@@ -260,4 +274,53 @@ void game_motion(int x, int y)
 		if(cam_phi < -90) cam_phi = -90;
 		if(cam_phi > 90) cam_phi = 90;
 	}
+}
+
+static void conv_mesh(struct g3d_mesh *m, void *mdata)
+{
+	int i, numtri;
+	float *vptr, *uvptr;
+	uint16_t *numptr;
+	struct g3d_vertex *vert, *va, *vb, *vc;
+	cgm_vec3 vab, vac, norm;
+
+	numptr = mdata;
+	m->vcount = numptr[0];
+	numtri = numptr[1];
+	m->icount = numtri * 3;
+
+	vptr = (float*)mdata + 1;
+	uvptr = vptr + m->vcount * 3;
+	numptr = (uint16_t*)(uvptr + m->vcount * 2);
+
+	m->varr = malloc(m->vcount * sizeof *m->varr);
+	vert = m->varr;
+	for(i=0; i<(int)m->vcount; i++) {
+		vert[i].x = vptr[0];
+		vert[i].y = vptr[1];
+		vert[i].z = vptr[2];
+		vert[i].u = uvptr[0];
+		vert[i].v = uvptr[1];
+		vert[i].l = vert->a = 255;
+		vptr += 3;
+		uvptr += 2;
+	}
+
+	m->iarr = numptr;
+	for(i=0; i<numtri; i++) {
+		va = m->varr + numptr[0];
+		vb = m->varr + numptr[1];
+		vc = m->varr + numptr[2];
+		vab = *(cgm_vec3*)vb; cgm_vsub(&vab, (cgm_vec3*)va);
+		vac = *(cgm_vec3*)vc; cgm_vsub(&vac, (cgm_vec3*)va);
+		cgm_vcross(&norm, &vab, &vac);
+		cgm_vnormalize(&norm);
+
+		va->nx = vb->nx = vc->nx = norm.x;
+		va->ny = vb->ny = vc->ny = norm.y;
+		va->nz = vb->nz = vc->nz = norm.z;
+	}
+
+	m->mtl = malloc_nf(sizeof *m->mtl);
+	init_g3dmtl(m->mtl);
 }

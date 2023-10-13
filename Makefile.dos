@@ -31,11 +31,14 @@ $(bin): $(obj)
 %.s: %.c
 	$(CC) $(CFLAGS) -masm=intel -S $< -o $@
 
-src/data.o32: src/data.asm data/tex.img
+src/data.o32: src/data.asm data/tex.img data/room.mesh
 	$(AS) -o $@ -f elf $(ASFLAGS) $<
 
 tools/pngdump/pngdump:
 	$(MAKE) -C tools/pngdump
+
+tools/meshdump/meshdump:
+	$(MAKE) -C tools/meshdump
 
 .PHONY: clean
 clean:

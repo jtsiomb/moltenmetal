@@ -10,21 +10,27 @@ CFLAGS = -pedantic -Wall -O2 -ffast-math -fno-strict-aliasing -g $(inc) -MMD
 LDFLAGS = -lGL -lX11 -lXext -lm
 
 PNGDUMP = tools/pngdump/pngdump
-
+MESHDUMP = tools/meshdump/meshdump
 
 $(bin): $(obj)
 	$(CC) -o $@ $(obj) $(LDFLAGS)
 
 -include $(dep)
 
-src/data.o: src/data.asm data/tex.img
+src/data.o: src/data.asm data/tex.img data/room.mesh
 	nasm -f elf64 -o $@ $<
 
 tools/pngdump/pngdump:
 	$(MAKE) -C tools/pngdump
 
+tools/meshdump/meshdump:
+	$(MAKE) -C tools/meshdump
+
 data/tex.img: data/tex.png $(PNGDUMP)
 	$(PNGDUMP) -o $@ -oc $(subst .img,.pal,$@) -os $(subst .img,.slut,$@) -s 8 $<
+
+data/room.mesh: data/room.obj $(MESHDUMP)
+	$(MESHDUMP) $< $@
 
 .PHONY: clean
 clean:
