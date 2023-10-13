@@ -35,6 +35,13 @@ _start:
 	test ax, 1
 	jz .notvm86
 
+	; Under DOS 7.0 or later GEMMIS doesn't work and hangs the computer.
+	; Detect DOS version and abort with an error message if ver >= 7.
+	mov ah, 30h
+	int 21h
+	cmp al, 7
+	jae .vm86abort2
+
 	; try to return to real mode
 	mov si, str_gemmis
 	call printstr
@@ -76,6 +83,7 @@ _start:
 	pop ds
 	mov si, msg_failstr
 	call printstr
+.vm86abort2:
 	mov si, str_errvm86
 	call printstr
 	jmp exit
