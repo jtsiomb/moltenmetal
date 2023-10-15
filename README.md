@@ -58,3 +58,5 @@ The cross-platform non-DOS version uses OpenGL to display the software-rendered
 framebuffer into a window.
 
 Run `make` to build.
+
+To cross-compile the windows version from GNU/Linux, run `make crosswin`.

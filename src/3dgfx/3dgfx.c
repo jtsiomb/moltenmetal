@@ -4,7 +4,11 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#if defined(WIN32) || defined(__WIN32)
+#include <malloc.h>
+#else
 #include <alloca.h>
+#endif
 #include "3dgfx.h"
 #include "polyfill.h"
 #include "polyclip.h"
