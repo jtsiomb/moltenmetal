@@ -6,8 +6,16 @@ buggy) DOS protected mode kernel, which starts as a flat binary (COM file).
 About the game
 --------------
 There is no goal or fail state. You just play with shapes pulled out of a pool
-of molten metal. Grab with the left mouse button and move them around, then let
-them fall back into the pool by releasing the mouse button.
+of molten metal.
+
+### Controls
+Grab with the left mouse button and move the shapes around, then let them fall
+back into the pool by releasing the mouse button.
+
+  - space: grab/release shape without using the mouse.
+  - tab: change shape.
+  - -/+: change the resolution of the voxel field in 5 voxel increments.
+  - '0': return to the default voxel field resolution.
 
 About COM32
 -----------

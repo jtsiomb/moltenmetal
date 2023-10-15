@@ -1,3 +1,19 @@
+/* Molten Metal - Tech demo for the COM32 DOS protected mode system
+ * Copyright (C) 2023  John Tsiombikas <nuclear@mutantstargoat.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -20,12 +36,6 @@
 #define BBOX_HXSZ		(BBOX_XSZ / 2.0f)
 #define BBOX_HYSZ		(BBOX_YSZ / 2.0f)
 #define BBOX_HZSZ		(BBOX_ZSZ / 2.0f)
-#define VOX_XRES		(VOX_RES * BBOX_XSZ / BBOX_ZSZ)
-#define VOX_YRES		(VOX_RES * BBOX_YSZ / BBOX_ZSZ)
-#define VOX_ZRES		VOX_RES
-#define VOX_XSTEP		(BBOX_XSZ / (float)VOX_XRES)
-#define VOX_YSTEP		(BBOX_YSZ / (float)VOX_YRES)
-#define VOX_ZSTEP		(BBOX_ZSZ / (float)VOX_ZRES)
 
 #define AUTO_HEIGHT		(BBOX_YSZ / 6.0f)
 
@@ -33,6 +43,10 @@
 #define VBUF_SIZE		(VBUF_MAX_TRIS * 3)
 
 unsigned long time_msec;
+int xyzzy;
+
+static int vox_res, vox_xres, vox_yres, vox_zres;
+static float vox_xstep, vox_ystep, vox_zstep;
 
 static struct g3d_mesh *mesh;
 static struct g3d_vertex *vbuf;
@@ -54,13 +68,11 @@ static unsigned char *envmap;
 static unsigned char *texmap;
 
 
+static void set_voxel_res(int sz);
 static void update(float tsec);
 static void draw_metaballs(void);
 static void conv_mesh(struct g3d_mesh *m, void *mdata);
 static void gen_textures(void);
-
-
-void intr_entry_fast_timer(void);
 
 
 int game_init(void)
@@ -99,13 +111,14 @@ int game_init(void)
 
 	g3d_polygon_mode(G3D_GOURAUD);
 
+	vox_res = DEF_VOX_RES;
 	if(!(msurf = msurf_create())) {
 		return -1;
 	}
 	msurf_set_threshold(msurf, 8);
 	msurf_set_inside(msurf, MSURF_GREATER);
 	msurf_set_bounds(msurf, -BBOX_HXSZ, -BBOX_HYSZ, -BBOX_HZSZ, BBOX_HXSZ, BBOX_HYSZ, BBOX_HZSZ);
-	msurf_set_resolution(msurf, VOX_XRES, VOX_YRES, VOX_ZRES);
+	set_voxel_res(vox_res);
 	msurf_enable(msurf, MSURF_NORMALIZE);
 
 	vbuf = malloc_nf(VBUF_SIZE * sizeof *vbuf);
@@ -128,6 +141,21 @@ void game_shutdown(void)
 {
 }
 
+static void set_voxel_res(int sz)
+{
+	vox_res = sz;
+	vox_xres = vox_res * BBOX_XSZ / BBOX_ZSZ;
+	vox_yres = vox_res * BBOX_YSZ / BBOX_ZSZ;
+	vox_zres = vox_res;
+	vox_xstep = (float)BBOX_XSZ / (float)vox_xres;
+	vox_ystep = (float)BBOX_YSZ / (float)vox_yres;
+	vox_zstep = (float)BBOX_ZSZ / (float)vox_zres;
+
+	if(msurf) {
+		msurf_set_resolution(msurf, vox_xres, vox_yres, vox_zres);
+	}
+}
+
 static void update(float tsec)
 {
 	int i, j, k;
@@ -147,12 +175,12 @@ static void update(float tsec)
 
 	mobj->update(mobj, tsec);
 
-	for(i=0; i<VOX_ZRES; i++) {
-		pos.z = -BBOX_HZSZ + i * VOX_ZSTEP;
-		for(j=0; j<VOX_YRES; j++) {
-			pos.y = -BBOX_HYSZ + j * VOX_YSTEP;
-			for(k=0; k<VOX_XRES; k++) {
-				pos.x = -BBOX_HXSZ + k * VOX_XSTEP;
+	for(i=0; i<vox_zres; i++) {
+		pos.z = -BBOX_HZSZ + i * vox_zstep;
+		for(j=0; j<vox_yres; j++) {
+			pos.y = -BBOX_HYSZ + j * vox_ystep;
+			for(k=0; k<vox_xres; k++) {
+				pos.x = -BBOX_HXSZ + k * vox_xstep;
 
 				/* initialize with the vertical distance for the pool */
 				energy = 5.0 / (pos.y + BBOX_HYSZ);
@@ -197,7 +225,7 @@ void game_draw(void)
 	g3d_pop_matrix();
 
 	g3d_push_matrix();
-	g3d_translate(0.5f * BBOX_XSZ / VOX_XRES, 0, 0.5f * BBOX_ZSZ / VOX_ZRES);
+	g3d_translate(0.5f * BBOX_XSZ / vox_xres, 0, 0.5f * BBOX_ZSZ / vox_zres);
 	g3d_disable(G3D_LIGHTING);
 	g3d_enable(G3D_TEXTURE_GEN);
 	g3d_set_texture(32, 32, envmap);
@@ -267,6 +295,28 @@ void game_keyboard(int key, int press)
 			mobj->swstate(mobj, MOBJ_DROPPING);
 		}
 		break;
+
+	case '0':
+		if(vox_res != DEF_VOX_RES) {
+			set_voxel_res(DEF_VOX_RES);
+		}
+		break;
+
+	case '-':
+		if(vox_res >= 15) {
+			vox_res -= 5;
+			set_voxel_res(vox_res);
+		}
+		break;
+
+	case '=':
+		vox_res += 5;
+		set_voxel_res(vox_res);
+		break;
+
+	case '`':
+		xyzzy ^= 1;
+		break;
 	}
 }
 
@@ -305,7 +355,7 @@ void game_motion(int x, int y)
 	u = (float)x / (float)FB_WIDTH;
 	v = (float)y / (float)FB_HEIGHT;
 	cam_theta = cgm_lerp(-15, 15, u);
-	cam_phi = cgm_lerp(-15, 25, v);
+	cam_phi = cgm_lerp(-10, 25, v);
 }
 
 struct mesh_header {

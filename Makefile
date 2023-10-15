@@ -6,7 +6,7 @@ bin = game
 
 inc = -Isrc -Isrc/3dgfx -Isrc/kern
 
-CFLAGS = -pedantic -Wall -O0 -ffast-math -fno-strict-aliasing -g $(inc) -MMD
+CFLAGS = -pedantic -Wall -O3 -ffast-math -fno-strict-aliasing -g $(inc) -MMD
 LDFLAGS = -lGL -lX11 -lXext -lm
 
 PNGDUMP = tools/pngdump/pngdump

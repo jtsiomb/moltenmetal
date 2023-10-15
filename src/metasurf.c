@@ -1,8 +1,25 @@
+/* Molten Metal - Tech demo for the COM32 DOS protected mode system
+ * Copyright (C) 2023  John Tsiombikas <nuclear@mutantstargoat.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "metasurf.h"
 #include "mcubes.h"
+#include "util.h"
 
 typedef float vec3[3];
 
@@ -251,6 +268,8 @@ float *msurf_normals(struct metasurface *ms)
 
 static unsigned int mc_bitcode(float *val, float thres);
 
+extern int xyzzy;
+
 static void process_cell(struct metasurface *ms, int xcell, int ycell, int zcell, vec3 cellpos, vec3 cellsz)
 {
 	int i, j, k, slice_size;
@@ -345,13 +364,10 @@ static void process_cell(struct metasurface *ms, int xcell, int ycell, int zcell
 			}
 
 			if(ms->flags & MSURF_NORMALIZE) {
-				float len = sqrt(nx * nx + ny * ny + nz * nz);
-				if(len != 0.0) {
-					float s = 1.0f / len;
-					nx *= s;
-					ny *= s;
-					nz *= s;
-				}
+				float s = rsqrt(nx * nx + ny * ny + nz * nz);
+				nx *= s;
+				ny *= s;
+				nz *= s;
 			}
 
 			norm[i][0] = nx;
