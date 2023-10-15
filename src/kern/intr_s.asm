@@ -90,16 +90,16 @@ intr_ret_local:
 
 ; special case for the timer interrupt, to avoid all the overhead of
 ; going through the C interrupt dispatcher 250 times each second
-;	extern nticks
-;	global intr_entry_fast_timer
-;intr_entry_fast_timer:
-;	inc dword [nticks]
-;	; signal end of interrupt
-;	push eax
-;	mov al, 20h
-;	out 20h, al
-;	pop eax
-;	iret
+	extern nticks
+	global intr_entry_fast_timer
+intr_entry_fast_timer:
+	inc dword [nticks]
+	; signal end of interrupt
+	push eax
+	mov al, 20h
+	out 20h, al
+	pop eax
+	iret
 
 ; special case for IRQ 7 and IRQ 15, to catch spurious interrupts
 PIC1_CMD equ 0x20

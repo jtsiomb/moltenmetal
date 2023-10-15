@@ -206,7 +206,7 @@ void POLYFILL(struct pvertex *varr)
 			/* for flat textured, cr,cg,cb would not be initialized */
 			inten = varr[0].l;
 #endif	/* !GOURAUD */
-			inten = shade_color(texel, inten);	/* was inten * texel */
+			inten = texel;//LOOKUP_SHADE(texel, inten);	/* was inten * texel */
 #endif	/* TEXMAP */
 
 #ifdef DEBUG_OVERDRAW

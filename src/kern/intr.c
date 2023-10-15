@@ -60,6 +60,7 @@ static void gate_desc(desc_t *desc, uint16_t sel, uint32_t addr, int dpl, int ty
 /* defined in intr_asm.S */
 void set_idt(uint32_t addr, uint16_t limit);
 void intr_entry_default(void);
+void intr_entry_fast_timer(void);
 void irq7_entry_check_spurious(void);
 void irq15_entry_check_spurious(void);
 
@@ -95,6 +96,9 @@ void init_intr(void)
 	 * slots
 	 */
 #include "intrtab.h"
+
+	/* change IRQ0 to the fast timer interrupt entry */
+	set_intr_entry(IRQ_TO_INTR(0), intr_entry_fast_timer);
 
 	/* change irq7 and irq15 to special entry points which first
 	 * make sure we didn't get a spurious interrupt before proceeding

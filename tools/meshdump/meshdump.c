@@ -14,12 +14,16 @@ int main(int argc, char **argv)
 	const float *varr;
 	const unsigned int *idxarr;
 	uint16_t vidx;
+	float scale, inv_scale, rad;
 
 	mesh = cmesh_alloc();
 	if(cmesh_load(mesh, argv[1]) == -1) {
 		fprintf(stderr, "failed to load mesh: %s\n", argv[1]);
 		return 1;
 	}
+	rad = cmesh_bsphere(mesh, 0, 0);
+
+	scale = 128.0 / rad;
 
 	if(!(fp = fopen(argv[2], "wb"))) {
 		fprintf(stderr, "failed to open output file: %s: %s\n", argv[2], strerror(errno));
@@ -30,14 +34,21 @@ int main(int argc, char **argv)
 	ntri = cmesh_poly_count(mesh);
 	nidx = cmesh_index_count(mesh);
 
+	inv_scale = 1.0f / scale;
+	fwrite(&inv_scale, sizeof inv_scale, 1, fp);
 	fwrite(&nverts, sizeof nverts, 1, fp);
 	fwrite(&ntri, sizeof ntri, 1, fp);
 
 	varr = cmesh_attrib_ro(mesh, CMESH_ATTR_VERTEX);
-	fwrite(varr, 3 * sizeof *varr, nverts, fp);
-
+	for(i=0; i<nverts * 3; i++) {
+		int16_t val = (int16_t)((varr[i] * scale) * 256.0f);
+		fwrite(&val, sizeof val, 1, fp);
+	}
 	varr = cmesh_attrib_ro(mesh, CMESH_ATTR_TEXCOORD);
-	fwrite(varr, 2 * sizeof(float), nverts, fp);
+	for(i=0; i<nverts * 2; i++) {
+		uint8_t val = (uint8_t)(varr[i] * 255.0f);
+		fwrite(&val, 1, 1, fp);
+	}
 
 	idxarr = cmesh_index_ro(mesh);
 	for(i=0; i<nidx; i++) {

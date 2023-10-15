@@ -6,7 +6,7 @@ bin = game
 
 inc = -Isrc -Isrc/3dgfx -Isrc/kern
 
-CFLAGS = -pedantic -Wall -O2 -ffast-math -fno-strict-aliasing -g $(inc) -MMD
+CFLAGS = -pedantic -Wall -O0 -ffast-math -fno-strict-aliasing -g $(inc) -MMD
 LDFLAGS = -lGL -lX11 -lXext -lm
 
 PNGDUMP = tools/pngdump/pngdump
@@ -26,10 +26,10 @@ tools/pngdump/pngdump:
 tools/meshdump/meshdump:
 	$(MAKE) -C tools/meshdump
 
-data/tex.img: data/tex.png $(PNGDUMP)
+%.img: %.png $(PNGDUMP)
 	$(PNGDUMP) -o $@ -oc $(subst .img,.pal,$@) -os $(subst .img,.slut,$@) -s 8 $<
 
-data/room.mesh: data/room.obj $(MESHDUMP)
+%.mesh: %.obj $(MESHDUMP)
 	$(MESHDUMP) $< $@
 
 .PHONY: clean

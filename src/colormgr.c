@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <limits.h>
 #include "colormgr.h"
 #include "vga.h"
 #include "util.h"
@@ -58,9 +59,26 @@ void load_colormap(int offs, int sz, unsigned char *col, unsigned char *slut)
 	}
 }
 
+/* TODO optimize */
 int find_color(int r, int g, int b)
 {
-	return 0;	/* TODO */
+	int i, best_col, best_dist, dr, dg, db, dsq;
+	unsigned char *cmap = colormap;
+
+	best_dist = INT_MAX;
+	for(i=0; i<256; i++) {
+		dr = r - cmap[0];
+		dg = g - cmap[1];
+		db = b - cmap[2];
+		dsq = dr * dr + dg * dg + db * db;
+		if(dsq < best_dist) {
+			best_dist = dsq;
+			best_col = i;
+		}
+		cmap += 3;
+	}
+
+	return best_col;
 }
 
 int shade_color(int col, int shade)

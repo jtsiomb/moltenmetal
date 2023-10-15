@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 #include "game.h"
 #include "colormgr.h"
 #include "3dgfx.h"
@@ -9,7 +10,12 @@
 #include "util.h"
 #include "cgmath/cgmath.h"
 #include "metaobj.h"
+#ifdef COM32
+#include "vga.h"
+#endif
 
+
+#define TEXSZ	256
 
 #define BBOX_HXSZ		(BBOX_XSZ / 2.0f)
 #define BBOX_HYSZ		(BBOX_YSZ / 2.0f)
@@ -45,21 +51,34 @@ extern unsigned char textures_slut[];
 extern unsigned char room_mesh[];
 
 static unsigned char *envmap;
+static unsigned char *texmap;
 
 
 static void update(float tsec);
 static void draw_metaballs(void);
 static void conv_mesh(struct g3d_mesh *m, void *mdata);
+static void gen_textures(void);
+
+
+void intr_entry_fast_timer(void);
 
 
 int game_init(void)
 {
 	init_colormgr();
 	load_colormap(0, 256, textures_cmap, textures_slut);
+#ifdef COM32
+	unsigned char savcol[24];
+	memcpy(savcol, colormap, sizeof savcol);
+	vga_setpalent(7, 128, 128, 128);
+#endif
+
+	gen_textures();
 
 	mesh = malloc_nf(sizeof *mesh);
 	conv_mesh(mesh, room_mesh);
 
+	//texmap = textures_img;
 	envmap = textures_img + 32 * 32;
 
 	g3d_init();
@@ -97,6 +116,11 @@ int game_init(void)
 	mobjects[1] = metaobj_sgi();
 	cur_obj = 0;
 	mobj = mobjects[cur_obj];
+
+#ifdef COM32
+	vga_setpalent(0, savcol[0], savcol[1], savcol[2]);
+	vga_setpalent(7, savcol[21], savcol[22], savcol[23]);
+#endif
 	return 0;
 }
 
@@ -162,17 +186,25 @@ void game_draw(void)
 	g3d_rotate(cam_phi, 1, 0, 0);
 	g3d_rotate(cam_theta, 0, 1, 0);
 
+	g3d_push_matrix();
+	g3d_translate(0, -BBOX_HYSZ * 0.89, 0);
+	g3d_disable(G3D_LIGHTING);
+	g3d_enable(G3D_TEXTURE_2D);
+	g3d_set_texture(TEXSZ, TEXSZ, texmap);
 	g3d_polygon_mode(G3D_FLAT);
 	draw_mesh(mesh);
 	g3d_polygon_mode(G3D_GOURAUD);
+	g3d_pop_matrix();
 
+	g3d_push_matrix();
+	g3d_translate(0.5f * BBOX_XSZ / VOX_XRES, 0, 0.5f * BBOX_ZSZ / VOX_ZRES);
 	g3d_disable(G3D_LIGHTING);
-	g3d_enable(G3D_TEXTURE_2D);
 	g3d_enable(G3D_TEXTURE_GEN);
 	g3d_set_texture(32, 32, envmap);
 	draw_metaballs();
 	g3d_disable(G3D_TEXTURE_GEN);
 	g3d_enable(G3D_LIGHTING);
+	g3d_pop_matrix();
 
 	game_swap_buffers();
 }
@@ -257,6 +289,7 @@ void game_mouse(int bn, int press, int x, int y)
 
 void game_motion(int x, int y)
 {
+	float u, v;
 	int dx = x - mousex;
 	int dy = y - mousey;
 	mousex = x;
@@ -268,49 +301,62 @@ void game_motion(int x, int y)
 		mobj->pos.x += dx * 0.1;
 		mobj->pos.y -= dy * 0.1;
 	}
-	if(mousebn[2]) {
-		cam_theta += (float)dx * (0.6f * 1.333333333f);
-		cam_phi += (float)dy * 0.6f;
-		if(cam_phi < -90) cam_phi = -90;
-		if(cam_phi > 90) cam_phi = 90;
-	}
+
+	u = (float)x / (float)FB_WIDTH;
+	v = (float)y / (float)FB_HEIGHT;
+	cam_theta = cgm_lerp(-15, 15, u);
+	cam_phi = cgm_lerp(-15, 25, v);
 }
+
+struct mesh_header {
+	float scale;
+	uint16_t vcount, tricount;
+	int16_t vdata[1];
+} __attribute__((packed));
 
 static void conv_mesh(struct g3d_mesh *m, void *mdata)
 {
-	int i, numtri;
-	float *vptr, *uvptr;
-	uint16_t *numptr;
-	struct g3d_vertex *vert, *va, *vb, *vc;
-	cgm_vec3 vab, vac, norm;
+	int i;
+	struct mesh_header *hdr;
+	int16_t *vptr;
+	uint8_t *uvptr;
+	uint16_t *idxptr;
+	struct g3d_vertex *vert;/*, *va, *vb, *vc;
+	cgm_vec3 vab, vac, norm;*/
 
-	numptr = mdata;
-	m->vcount = numptr[0];
-	numtri = numptr[1];
-	m->icount = numtri * 3;
+	m->prim = G3D_TRIANGLES;
 
-	vptr = (float*)mdata + 1;
-	uvptr = vptr + m->vcount * 3;
-	numptr = (uint16_t*)(uvptr + m->vcount * 2);
+	hdr = (struct mesh_header*)mdata;
+
+	m->vcount = hdr->vcount;
+	m->icount = hdr->tricount * 3;
+
+	vptr = hdr->vdata;
+	uvptr = (uint8_t*)(hdr->vdata + m->vcount * 3);
+	idxptr = (uint16_t*)(uvptr + m->vcount * 2);
 
 	m->varr = malloc(m->vcount * sizeof *m->varr);
 	vert = m->varr;
 	for(i=0; i<(int)m->vcount; i++) {
-		vert[i].x = vptr[0];
-		vert[i].y = vptr[1];
-		vert[i].z = vptr[2];
-		vert[i].u = uvptr[0];
-		vert[i].v = uvptr[1];
+		vert[i].x = (float)vptr[0] / 256.0f * hdr->scale;
+		vert[i].y = (float)vptr[1] / 256.0f * hdr->scale;
+		vert[i].z = (float)vptr[2] / 256.0f * hdr->scale;
+		vert[i].u = (float)uvptr[0] / 255.0f;
+		vert[i].v = (float)uvptr[1] / 255.0f;
 		vert[i].l = vert->a = 255;
 		vptr += 3;
 		uvptr += 2;
 	}
 
-	m->iarr = numptr;
-	for(i=0; i<numtri; i++) {
-		va = m->varr + numptr[0];
-		vb = m->varr + numptr[1];
-		vc = m->varr + numptr[2];
+	m->iarr = idxptr;
+
+	/*
+	for(i=0; i<hdr->tricount; i++) {
+		assert(idxptr[0] != idxptr[1] && idxptr[1] != idxptr[2]);
+		va = m->varr + idxptr[0];
+		vb = m->varr + idxptr[1];
+		vc = m->varr + idxptr[2];
+		idxptr += 3;
 		vab = *(cgm_vec3*)vb; cgm_vsub(&vab, (cgm_vec3*)va);
 		vac = *(cgm_vec3*)vc; cgm_vsub(&vac, (cgm_vec3*)va);
 		cgm_vcross(&norm, &vab, &vac);
@@ -320,7 +366,109 @@ static void conv_mesh(struct g3d_mesh *m, void *mdata)
 		va->ny = vb->ny = vc->ny = norm.y;
 		va->nz = vb->nz = vc->nz = norm.z;
 	}
+	*/
 
 	m->mtl = malloc_nf(sizeof *m->mtl);
 	init_g3dmtl(m->mtl);
+}
+
+static void vgrad(unsigned char *rgbimg, int x, int y, int xsz, int ysz,
+		int r0, int g0, int b0, int r1, int g1, int b1)
+{
+	int i, j;
+
+	rgbimg += (y * TEXSZ + x) * 3;
+
+	for(i=0; i<ysz; i++) {
+		int32_t t = (i << 8) / (ysz - 1);
+		int r = ((r0 << 8) + (r1 - r0) * t) >> 8;
+		int g = ((g0 << 8) + (g1 - g0) * t) >> 8;
+		int b = ((b0 << 8) + (b1 - b0) * t) >> 8;
+		for(j=0; j<xsz; j++) {
+			rgbimg[0] = r;
+			rgbimg[1] = g;
+			rgbimg[2] = b;
+			rgbimg += 3;
+		}
+		rgbimg += (TEXSZ - xsz) * 3;
+	}
+}
+
+static void blob_hline(unsigned char *rgbimg, int x, int y, int w, int br, int bg, int bb, float energy)
+{
+	int i, j, r, g, b;
+	float dx, dy, dsq, val;
+
+	for(i=0; i<TEXSZ; i++) {
+		dy = i - y;
+		for(j=0; j<TEXSZ; j++) {
+			if(j < x) {
+				dx = x - j;
+			} else if(j >= x + w) {
+				dx = j - x - w;
+			} else {
+				dx = 0;
+			}
+			dsq = dx * dx + dy * dy;
+			val = dsq == 0.0f ? 1.0f : energy / dsq;
+			r = (int)rgbimg[0] + val * br;
+			g = (int)rgbimg[1] + val * bg;
+			b = (int)rgbimg[2] + val * bb;
+			rgbimg[0] = r > 255 ? 255 : r;
+			rgbimg[1] = g > 255 ? 255 : g;
+			rgbimg[2] = b > 255 ? 255 : b;
+			rgbimg += 3;
+		}
+	}
+}
+
+void gen_textures(void)
+{
+	int i, j, col;
+	unsigned char *rgb, *rgbptr;
+	unsigned char *pptr;
+
+	/*FILE *fp = fopen("foo.ppm", "wb");
+	fprintf(fp, "P6\n%d %d\n255\n", TEXSZ, TEXSZ);*/
+
+	rgb = calloc_nf(3, TEXSZ * TEXSZ);
+	texmap = malloc_nf(TEXSZ * TEXSZ);
+
+	rgbptr = rgb;
+	for(i=0; i<100; i++) {
+		pptr = textures_img + ((i >> 3) << 5);
+		for(j=0; j<TEXSZ; j++) {
+			col = pptr[j >> 3];
+			rgbptr[0] = colormap[col * 3];
+			rgbptr[1] = colormap[col * 3 + 1];
+			rgbptr[2] = colormap[col * 3 + 2];
+			rgbptr += 3;
+		}
+	}
+
+	vgrad(rgb, 0, 100, TEXSZ, 50, 21, 24, 37, 23, 26, 39);
+	vgrad(rgb, 0, 150, TEXSZ, 5, 18, 21, 34, 36, 40, 59);
+	vgrad(rgb, 0, 155, TEXSZ, 5, 36, 40, 59, 18, 21, 34);
+	vgrad(rgb, 0, 160, TEXSZ, 12, 18, 21, 34, 36, 40, 59);
+	vgrad(rgb, 0, 172, TEXSZ, 5, 18, 21, 34, 36, 40, 59);
+	vgrad(rgb, 0, 177, TEXSZ, 5, 36, 40, 59, 18, 21, 34);
+	vgrad(rgb, 0, 181, TEXSZ, 12, 36, 40, 59, 18, 21, 34);
+	vgrad(rgb, 0, 193, TEXSZ, 5, 18, 21, 34, 36, 40, 59);
+	vgrad(rgb, 0, 198, TEXSZ, 5, 36, 40, 59, 18, 21, 34);
+	vgrad(rgb, 0, 203, TEXSZ, TEXSZ - 203, 33, 36, 54, 33, 36, 54);
+
+	blob_hline(rgb, 38, 177, 58, 50, 200, 255, 10);
+	blob_hline(rgb, 160, 177, 58, 50, 200, 255, 10);
+
+	pptr = texmap;
+	for(i=0; i<TEXSZ; i++) {
+		for(j=0; j<TEXSZ; j++) {
+			*pptr++ = find_color(rgb[0], rgb[1], rgb[2]);
+			/*fputc(rgb[0], fp);
+			fputc(rgb[1], fp);
+			fputc(rgb[2], fp);*/
+			rgb += 3;
+		}
+	}
+	/*fclose(fp);*/
 }

@@ -121,6 +121,9 @@ _start:
 	mov ax, 13h
 	int 10h
 
+	mov si, str_loading
+	call printstr
+
 	cli	; paranoid
 	lgdt [gdt_lim]
 
@@ -204,6 +207,7 @@ exit:	mov ax, 4c00h
 str_gemmis db 'Memory manager detected, trying to take control...',0
 str_errvm86 db 'Error: memory manager running. Stop it and try again (e.g. emm386 off)',10,0
 str_enterpm db 'Entering 32bit protected mode ...',10,0
+str_loading db 'Loading ...',0
 
 	align 4
 vmswitch:

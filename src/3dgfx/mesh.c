@@ -599,3 +599,43 @@ int gen_torus_mesh(struct g3d_mesh *mesh, float rad, float ringrad, int usub, in
 	return 0;
 }
 
+/*
+int save_mesh(struct g3d_mesh *mesh, const char *fname)
+{
+	int i, fvcount;
+	FILE *fp;
+
+	if(!(fp = fopen(fname, "wb"))) {
+		fprintf(stderr, "save_mesh: failed to open %s for writing\n", fname);
+		return -1;
+	}
+	fprintf(fp, "# Wavefront OBJ file shoved in your FACE by Mindlapse. Deal with it\n");
+
+	for(i=0; i<mesh->vcount; i++) {
+		struct g3d_vertex *v = mesh->varr + i;
+		fprintf(fp, "v %f %f %f\n", v->x, v->y, v->z);
+	}
+	for(i=0; i<mesh->vcount; i++) {
+		fprintf(fp, "vn %f %f %f\n", mesh->varr[i].nx, mesh->varr[i].ny, mesh->varr[i].nz);
+	}
+	for(i=0; i<mesh->vcount; i++) {
+		fprintf(fp, "vt %f %f\n", mesh->varr[i].u, mesh->varr[i].v);
+	}
+
+	fvcount = mesh->prim;
+	for(i=0; i<mesh->icount; i++) {
+		int idx = mesh->iarr[i] + 1;
+
+		if(fvcount == mesh->prim) {
+			fprintf(fp, "\nf");
+			fvcount = 0;
+		}
+		fprintf(fp, " %d/%d/%d", idx, idx, idx);
+		++fvcount;
+	}
+	fprintf(fp, "\n");
+
+	fclose(fp);
+	return 0;
+}
+*/

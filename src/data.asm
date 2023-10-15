@@ -11,8 +11,9 @@ textures_img:
 textures_cmap:
 	incbin 'data/tex.pal'
 textures_slut:
-	incbin 'data/tex.slut'
+	;incbin 'data/tex.slut'
 
+	align 4
 room_mesh:
 	incbin 'data/room.mesh'
 
